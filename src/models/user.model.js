@@ -2,9 +2,11 @@ const mongoose = require("mongoose");
 
 const UserSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
-  emailOrPhone: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
   cpf: { type: String, required: true, unique: true },
-  phone: { type: String, required: true },
+  phone: { type: String, required: true, unique: true },
+  birthDate: { type: Date, required: true },
+  password: { type: String, required: true },
   address: {
     cep: { type: String, required: true },
     street: { type: String, required: true },
@@ -14,7 +16,7 @@ const UserSchema = new mongoose.Schema({
     complement: { type: String },
     reference: { type: String },
   },
-  password: { type: String, required: true },
+
   role: {
     type: String,
     enum: ["worker", "client", "admin"],
@@ -27,9 +29,9 @@ const UserSchema = new mongoose.Schema({
   },
   // Campos específicos para trabalhadores
   workerDetails: {
-    birthDate: { type: Date },
-    idPhoto: { type: String }, // URL ou base64
-    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
+    birthDate: { type: Date }, // Data de nascimento
+    idPhoto: { type: String }, // Foto de identidade (URL ou base64)
+    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" }, // Empresa associada
   },
 });
 

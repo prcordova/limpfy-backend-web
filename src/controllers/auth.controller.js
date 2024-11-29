@@ -4,14 +4,21 @@ const User = require("../models/user.model");
 
 exports.register = async (req, res) => {
   try {
-    const { fullName, emailOrPhone, password } = req.body;
+    const { fullName, email, cpf, phone, birthDate, password, address } =
+      req.body;
 
+    // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Criação do usuário com todos os campos
     const user = new User({
       fullName,
-      emailOrPhone,
+      email,
+      cpf,
+      phone,
+      birthDate,
       password: hashedPassword,
+      address, // Aqui, o objeto address é atribuído diretamente
       role: "client", // Por padrão, define como cliente
     });
 
@@ -19,6 +26,10 @@ exports.register = async (req, res) => {
 
     res.status(201).json({ message: "Usuário registrado com sucesso." });
   } catch (err) {
+    // Verifica erros de validação do Mongoose
+    if (err.name === "ValidationError") {
+      return res.status(400).json({ message: err.message });
+    }
     res.status(500).json({ message: err.message });
   }
 };
