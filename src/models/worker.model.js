@@ -1,10 +1,9 @@
-const mongoose = require("mongoose");
-
-const UserSchema = new mongoose.Schema({
+const WorkerSchema = new mongoose.Schema({
   fullName: { type: String, required: true },
   emailOrPhone: { type: String, required: true, unique: true },
   cpf: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
+  birthDate: { type: Date, required: true },
   address: {
     cep: { type: String, required: true },
     street: { type: String, required: true },
@@ -14,23 +13,23 @@ const UserSchema = new mongoose.Schema({
     complement: { type: String },
     reference: { type: String },
   },
+  idPhoto: { type: String },
   password: { type: String, required: true },
   role: {
     type: String,
-    enum: ["worker", "client", "admin"],
-    default: "client",
+    enum: ["worker"],
+    default: "worker",
   },
   status: {
     type: String,
     enum: ["pending", "approved", "rejected"],
     default: "pending",
   },
-  // Campos específicos para trabalhadores
-  workerDetails: {
-    birthDate: { type: Date },
-    idPhoto: { type: String }, // URL ou base64
-    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true, // Trabalhadores sempre pertencem a uma empresa
   },
 });
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = mongoose.model("Worker", WorkerSchema);
