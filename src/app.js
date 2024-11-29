@@ -2,10 +2,13 @@ const express = require("express");
 const cors = require("cors");
 const authRoutes = require("./routes/auth.routes");
 const jobsRoutes = require("./routes/jobs.routes");
+const cookieParser = require("cookie-parser");
+
 const usersRoutes = require("./routes/users.routes");
 const { globalErrorHandler } = require("./utils/error.handler");
 
 const app = express();
+app.use(cookieParser());
 
 app.use(cors());
 app.use(express.json());

@@ -36,9 +36,10 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { emailOrPhone, password } = req.body;
+    const { email, password } = req.body;
 
-    const user = await User.findOne({ emailOrPhone });
+    const user = await User.findOne({ email });
+
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
@@ -49,7 +50,43 @@ exports.login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ access_token: token });
+    // Armazena o token em um cookie
+    res.cookie("session-token", token, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      access_token: token,
+      role: user.role,
+      userId: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      cpf: user.cpf,
+      phone: user.phone,
+      birthDate: user.birthDate,
+      address: user.address,
+      workerDetails: user.workerDetails,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+exports.getProfile = async (req, res) => {
+  try {
+    const token = req.cookies["session-token"];
+    if (!token) {
+      return res.status(401).json({ message: "Token não encontrado" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.sub);
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.json({ username: user.username });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
