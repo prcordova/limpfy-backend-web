@@ -4,7 +4,7 @@ const User = require("../models/user.model");
 
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, cpf, phone, birthDate, password, address } =
+    const { fullName, email, cpf, phone, birthDate, password, address, role } =
       req.body;
 
     // Hash da senha
@@ -18,8 +18,8 @@ exports.register = async (req, res) => {
       phone,
       birthDate,
       password: hashedPassword,
-      address, // Aqui, o objeto address é atribuído diretamente
-      role: "client", // Por padrão, define como cliente
+      address,
+      role,
     });
 
     await user.save();
