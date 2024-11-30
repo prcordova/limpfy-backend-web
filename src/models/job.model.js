@@ -8,6 +8,18 @@ const JobSchema = new mongoose.Schema({
     enum: ["pending", "in-progress", "completed"],
     default: "pending",
   },
+  workerQuantity: { type: Number, required: true },
+  price: { type: Number, required: true },
+  sizeGarbage: { type: Number, required: true },
+  location: {
+    cep: { type: String, required: true },
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    number: { type: String, required: true },
+    complement: { type: String },
+    reference: { type: String },
+  },
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
