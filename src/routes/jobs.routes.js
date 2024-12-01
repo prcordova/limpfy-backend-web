@@ -9,10 +9,10 @@ const {
 const { authenticate } = require("../middlewares/auth.middleware");
 const router = express.Router();
 
-router.post("/jobs/create", authenticate, createJob);
-router.get("/jobs", authenticate, getJobs);
-router.get("/jobs/:id", authenticate, getJobById);
-router.get("/jobs/user/:userId", authenticate, getJobsByUserId);
-router.post("/jobs/:id/accept", authenticate, acceptJob);
+router.post("/create", authenticate, createJob);
+router.get("/", authenticate, getJobs);
+router.get("/:id", authenticate, getJobById);
+router.get("/user/:userId", authenticate, getJobsByUserId);
+router.post("/:id/accept", authenticate, acceptJob);
 
 module.exports = router;
