@@ -49,7 +49,9 @@ exports.cancelOrder = async (req, res) => {
 
 exports.getClientJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ clientId: req.user.sub });
+    const jobs = await Job.find({ clientId: req.user.sub }).sort({
+      createdAt: -1,
+    });
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -58,7 +60,9 @@ exports.getClientJobs = async (req, res) => {
 
 exports.getJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ status: { $ne: "in-progress" } });
+    const jobs = await Job.find({
+      status: { $nin: ["in-progress", "cancelled-by-client"] },
+    });
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -85,6 +89,54 @@ exports.getJobsByUserId = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+exports.updateJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    if (job.clientId.toString() !== req.user.sub) {
+      return res.status(403).json({
+        message: "Você não tem permissão para editar este trabalho",
+      });
+    }
+
+    Object.assign(job, req.body);
+    await job.save();
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.reactivateJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    if (job.clientId.toString() !== req.user.sub) {
+      return res.status(403).json({
+        message: "Você não tem permissão para reativar este trabalho",
+      });
+    }
+
+    job.status = "pending";
+    await job.save();
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+//Worker endpoints
 
 exports.acceptJob = async (req, res) => {
   try {
