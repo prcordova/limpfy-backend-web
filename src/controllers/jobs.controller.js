@@ -23,6 +23,15 @@ exports.createJob = async (req, res) => {
 //   }
 // };
 
+exports.getClientJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ clientId: req.user.sub });
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await Job.find({ status: { $ne: "in-progress" } });

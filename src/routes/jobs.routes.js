@@ -7,6 +7,7 @@ const {
   getJobsByUserId,
   cancelJob,
   getMyJobs,
+  getClientJobs,
 } = require("../controllers/jobs.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const router = express.Router();
@@ -14,6 +15,8 @@ const router = express.Router();
 router.post("/create", authenticate, createJob);
 router.get("/", authenticate, getJobs);
 router.get("/my-jobs", authenticate, getMyJobs);
+
+router.get("/client-jobs", authenticate, getClientJobs);
 
 router.get("/:id", authenticate, getJobById);
 router.get("/user/:userId", authenticate, getJobsByUserId);
