@@ -35,6 +35,15 @@ exports.getJobById = async (req, res) => {
   }
 };
 
+exports.getJobsByUserId = async (req, res) => {
+  try {
+    const jobs = await Job.find({ clientId: req.params.userId });
+    res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.acceptJob = async (req, res) => {
   try {
     console.log(`Accepting job with ID: ${req.params.id}`);
@@ -54,9 +63,28 @@ exports.acceptJob = async (req, res) => {
   }
 };
 
-exports.getJobsByUserId = async (req, res) => {
+exports.cancelJob = async (req, res) => {
   try {
-    const jobs = await Job.find({ clientId: req.params.userId });
+    console.log(`Cancelling job with ID: ${req.params.id}`);
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    job.workerId = null;
+    job.status = "pending";
+    await job.save();
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getMyJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ workerId: req.user.sub });
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
