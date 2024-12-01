@@ -21,7 +21,7 @@ exports.authenticate = (req, res, next) => {
     next();
   } catch (err) {
     console.error("Erro ao verificar token:", err.message);
-    res.status(401).json({ message: "Token inválido ou expirado." });
+    res.status(401).json({ message: "Token inválido" });
   }
 };
 

@@ -35,6 +35,25 @@ exports.getJobById = async (req, res) => {
   }
 };
 
+exports.acceptJob = async (req, res) => {
+  try {
+    console.log(`Accepting job with ID: ${req.params.id}`);
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    job.workerId = req.user.sub;
+    job.status = "in-progress";
+    await job.save();
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 exports.getJobsByUserId = async (req, res) => {
   try {
     const jobs = await Job.find({ clientId: req.params.userId });
