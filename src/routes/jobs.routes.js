@@ -8,6 +8,7 @@ const {
   cancelJob,
   getMyJobs,
   getClientJobs,
+  cancelOrder,
 } = require("../controllers/jobs.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const router = express.Router();
@@ -22,4 +23,5 @@ router.get("/:id", authenticate, getJobById);
 router.get("/user/:userId", authenticate, getJobsByUserId);
 router.post("/:id/accept", authenticate, acceptJob);
 router.post("/:id/cancel", authenticate, cancelJob);
+router.post("/:id/cancel-order", authenticate, cancelOrder);
 module.exports = router;

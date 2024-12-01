@@ -5,7 +5,7 @@ const JobSchema = new mongoose.Schema({
   description: { type: String, required: true },
   status: {
     type: String,
-    enum: ["pending", "in-progress", "completed"],
+    enum: ["pending", "in-progress", "completed", "cancelled-by-client"],
     default: "pending",
   },
   workerQuantity: { type: Number, required: true },
