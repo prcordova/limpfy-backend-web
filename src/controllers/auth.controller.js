@@ -68,6 +68,7 @@ exports.login = async (req, res) => {
       birthDate: user.birthDate,
       address: user.address,
       hasAcceptedTerms: user.hasAcceptedTerms,
+      termsAcceptedDate: user.termsAcceptedDate,
       workerDetails: user.workerDetails,
     });
   } catch (err) {
@@ -91,6 +92,7 @@ exports.getProfile = async (req, res) => {
     res.json({
       username: user.username,
       hasAcceptedTerms: user.hasAcceptedTerms,
+      termsAcceptedDate: user.termsAcceptedDate,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -52,6 +52,7 @@ exports.acceptTerms = async (req, res) => {
     res.json({
       message: "Terms accepted successfully.",
       hasAcceptedTerms: user.hasAcceptedTerms,
+      termsAcceptedDate: user.termsAcceptedDate,
     });
   } catch (err) {
     console.error("Error accepting terms:", err);
