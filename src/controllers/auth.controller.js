@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/user.model");
+const { acceptTerms } = require("./users.controller");
 
 exports.register = async (req, res) => {
   try {
@@ -66,6 +67,7 @@ exports.login = async (req, res) => {
       phone: user.phone,
       birthDate: user.birthDate,
       address: user.address,
+      hasAcceptedTerms: user.hasAcceptedTerms,
       workerDetails: user.workerDetails,
     });
   } catch (err) {
@@ -86,7 +88,10 @@ exports.getProfile = async (req, res) => {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
-    res.json({ username: user.username });
+    res.json({
+      username: user.username,
+      hasAcceptedTerms: user.hasAcceptedTerms,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

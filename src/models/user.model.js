@@ -19,6 +19,9 @@ const UserSchema = new mongoose.Schema(
       reference: { type: String },
     },
     isVerified: { type: Boolean, default: false },
+    hasAcceptedTerms: { type: Boolean, default: false },
+    termsAcceptedDate: { type: Date },
+    faceVerified: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
