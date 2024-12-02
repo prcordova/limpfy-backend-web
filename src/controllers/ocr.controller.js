@@ -4,39 +4,35 @@ const Tesseract = require("tesseract.js");
 exports.validateDocument = async (req, res) => {
   try {
     console.log("Recebendo requisição de validação de documento...");
-    const { formData } = JSON.parse(req.body.formData);
+    const formData = JSON.parse(req.body.formData);
+    console.log("Dados do formulário recebidos:", formData);
     const documentPath = req.file.path;
 
     console.log("Iniciando OCR no documento...");
     // Use Tesseract.js to perform OCR on the document
     const {
       data: { text },
-    } = await Tesseract.recognize(documentPath, "eng");
+    } = await Tesseract.recognize(documentPath, "por");
 
     console.log("OCR concluído. Texto extraído:", text);
 
-    // Extract relevant information from the OCR text
-    const extractedData = extractDataFromText(text);
+    // Remover a máscara do CPF no texto extraído
+    const textWithoutMask = text.replace(/[\.\-]/g, "");
 
-    console.log("Dados extraídos do documento:", extractedData);
+    // Verifique se o texto contém os valores fornecidos
+    const containsFullName = text.includes(formData.fullName.toUpperCase());
+    const containsCpf = textWithoutMask.includes(formData.cpf);
 
-    // Verifique se os dados extraídos estão vazios
-    if (!extractedData.fullName || !extractedData.cpf) {
-      console.log("Documento inválido");
-      return res.status(400).json({
-        message: "Documento inválido",
-      });
-    }
+    console.log("Nome encontrado:", containsFullName);
+    console.log("CPF encontrado:", containsCpf);
 
-    // Compare extracted data with form data
-    if (
-      extractedData.fullName !== formData.fullName ||
-      extractedData.cpf !== formData.cpf
-    ) {
+    if (!containsFullName || !containsCpf) {
       console.log("Dados do documento não coincidem com os dados fornecidos.");
-      return res.status(400).json({
-        message: "Dados do documento não coincidem com os dados fornecidos.",
-      });
+      return res
+        .status(400)
+        .json({
+          message: "Dados do documento não coincidem com os dados fornecidos.",
+        });
     }
 
     // Clean up the uploaded file
@@ -50,11 +46,14 @@ exports.validateDocument = async (req, res) => {
 };
 
 function extractDataFromText(text) {
+  console.log("TEXT SEM TRATAMENTO : ", text);
   // Implement logic to extract fullName and cpf from the OCR text
   // This is a placeholder implementation
-  const fullNameMatch = text.match(/Nome:\s*(.*)/);
-  const cpfMatch = text.match(/CPF:\s*(\d{3}\.\d{3}\.\d{3}-\d{2})/);
-  const fullName = fullNameMatch ? fullNameMatch[1] : "";
-  const cpf = cpfMatch ? cpfMatch[1] : "";
+  const fullNameMatch = text.match(/NOME E SOBRENOME\s*([A-Z\s]+)/i);
+  const cpfMatch = text.match(/CPF\s*[:\s]*([\d\.\-]+)/i);
+  const fullName = fullNameMatch ? fullNameMatch[1].trim() : "";
+  const cpf = cpfMatch ? cpfMatch[1].replace(/\D/g, "") : "";
+  console.log("Nome extraído:", fullName);
+  console.log("CPF extraído:", cpf);
   return { fullName, cpf };
 }
