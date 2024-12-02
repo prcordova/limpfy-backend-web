@@ -11,6 +11,7 @@ exports.getUsers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
+    console.log("Buscando usuário com ID:", req.params.id); // Adiciona log para verificar o ID do usuário
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
@@ -28,9 +29,39 @@ exports.getUserById = async (req, res) => {
       faceVerified: user.faceVerified,
       role: user.role,
       status: user.status,
+      avatar: user.avatar,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const updates = req.body;
+
+    // Se houver um arquivo de avatar, atualize o caminho do avatar
+    if (req.file) {
+      updates.avatar = path.relative(
+        path.join(__dirname, "../../public"),
+        req.file.path
+      );
+    }
+
+    // Atualize o endereço se fornecido
+    if (updates.address) {
+      updates.address = JSON.parse(updates.address);
+    }
+
+    const user = await User.findByIdAndUpdate(userId, updates, { new: true });
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error("Error updating profile:", err);
+    res.status(500).json({ message: "Error updating profile." });
   }
 };
 
