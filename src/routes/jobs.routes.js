@@ -1,4 +1,5 @@
 const express = require("express");
+
 const {
   createJob,
   getJobs,
@@ -13,6 +14,7 @@ const {
   getClientJobs,
 } = require("../controllers/jobs.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
+
 const router = express.Router();
 
 // cliente
