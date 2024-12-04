@@ -1,6 +1,7 @@
 const User = require("../models/user.model");
 const jwt = require("jsonwebtoken");
 const path = require("path");
+const fs = require("fs");
 
 exports.getUsers = async (req, res) => {
   try {
@@ -31,7 +32,7 @@ exports.getUserById = async (req, res) => {
       faceVerified: user.faceVerified,
       role: user.role,
       status: user.status,
-      avatar: user.avatar ? `/uploads/${user.avatar}` : null, // Corrige o caminho do avatar
+      avatar: user.avatar ? `/${user.avatar}` : null, // Corrige o caminho do avatar
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -46,9 +47,18 @@ exports.updateProfile = async (req, res) => {
 
     // Se houver um arquivo de avatar, atualize o caminho do avatar
     if (req.file) {
-      updates.avatar = path
-        .relative(path.join(__dirname, "../../public/uploads"), req.file.path)
-        .replace(/\\/g, "/"); // Corrige o caminho para usar barras normais
+      const avatarDir = path.join(
+        __dirname,
+        "../../public/uploads/users",
+        userId,
+        "avatar"
+      );
+      if (!fs.existsSync(avatarDir)) {
+        fs.mkdirSync(avatarDir, { recursive: true });
+      }
+      const avatarPath = path.join(avatarDir, req.file.filename);
+      fs.renameSync(req.file.path, avatarPath); // Move o arquivo para a pasta correta
+      updates.avatar = `uploads/users/${userId}/avatar/${req.file.filename}`;
     }
 
     // Atualize o endereço se fornecido
@@ -88,7 +98,7 @@ exports.updateProfile = async (req, res) => {
       hasAcceptedTerms: user.hasAcceptedTerms,
       termsAcceptedDate: user.termsAcceptedDate,
       workerDetails: user.workerDetails,
-      avatar: user.avatar,
+      avatar: user.avatar ? `/uploads/${user.avatar}` : null, // Corrige o caminho do avatar
     });
   } catch (err) {
     console.error("Error updating profile:", err);
