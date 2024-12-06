@@ -2,18 +2,26 @@ const Job = require("../models/job.model");
 
 exports.createJob = async (req, res) => {
   try {
-    const job = new Job({ ...req.body, clientId: req.user.sub });
+    const job = new Job({ ...req.body, clientId: req.user._id });
     await job.save();
 
     res.status(201).json({
       jobId: job._id,
-      ...req.body,
+      clientId: job.clientId,
+      title: job.title,
+      description: job.description,
+      workerQuantity: job.workerQuantity,
+      price: job.price,
+      sizeGarbage: job.sizeGarbage,
+      typeOfGarbage: job.typeOfGarbage,
+      cleaningType: job.cleaningType,
+      measurementUnit: job.measurementUnit,
+      location: job.location,
     });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 };
-
 exports.cancelOrder = async (req, res) => {
   try {
     console.log(`Cancelling order with ID: ${req.params.id}`);
@@ -22,7 +30,7 @@ exports.cancelOrder = async (req, res) => {
       return res.status(404).json({ message: "Trabalho não encontrado" });
     }
 
-    if (job.clientId.toString() !== req.user.sub) {
+    if (job.clientId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         message: "Você não tem permissão para cancelar este trabalho",
       });
@@ -49,15 +57,12 @@ exports.cancelOrder = async (req, res) => {
 
 exports.getClientJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ clientId: req.user.sub }).sort({
-      createdAt: -1,
-    });
-    res.json(jobs);
+    const jobs = await Job.find({ clientId: req.user._id });
+    res.status(200).json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await Job.find({
@@ -97,7 +102,7 @@ exports.updateJob = async (req, res) => {
       return res.status(404).json({ message: "Trabalho não encontrado" });
     }
 
-    if (job.clientId.toString() !== req.user.sub) {
+    if (job.clientId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         message: "Você não tem permissão para editar este trabalho",
       });
@@ -120,7 +125,7 @@ exports.reactivateJob = async (req, res) => {
       return res.status(404).json({ message: "Trabalho não encontrado" });
     }
 
-    if (job.clientId.toString() !== req.user.sub) {
+    if (job.clientId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         message: "Você não tem permissão para reativar este trabalho",
       });
