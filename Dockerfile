@@ -3,7 +3,7 @@ FROM node:20
 
 
 # Defina o diretório de trabalho no container
-WORKDIR /usr/src/app
+WORKDIR /usr/src/server
 
 # Copie o package.json e package-lock.json para o diretório de trabalho do container
 COPY package*.json ./
