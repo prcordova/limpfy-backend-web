@@ -3,7 +3,7 @@ FROM node:20
 
 
 # Defina o diretório de trabalho no container
-WORKDIR /usr/src/server
+WORKDIR /usr/src/app
 
 # Copie o package.json e package-lock.json para o diretório de trabalho do container
 COPY package*.json ./
@@ -20,4 +20,4 @@ EXPOSE 8080
 ENV NODE_ENV=production
 
 # Defina o comando para rodar a aplicação
-CMD [ "node", "index.js" ]
+CMD [ "node", "server.js" ]
