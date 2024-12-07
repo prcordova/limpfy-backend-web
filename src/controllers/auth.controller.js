@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const User = require("../models/user.model");
-const { acceptTerms } = require("./users.controller");
 
 exports.register = async (req, res) => {
   try {
@@ -27,6 +26,10 @@ exports.register = async (req, res) => {
 
     res.status(201).json({ message: "Usuário registrado com sucesso." });
   } catch (err) {
+    // Verifica erros de duplicação do Mongoose
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "CPF ou email já cadastrado." });
+    }
     // Verifica erros de validação do Mongoose
     if (err.name === "ValidationError") {
       return res.status(400).json({ message: err.message });

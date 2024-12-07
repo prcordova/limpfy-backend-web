@@ -22,6 +22,7 @@ exports.createJob = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
 exports.cancelOrder = async (req, res) => {
   try {
     console.log(`Cancelling order with ID: ${req.params.id}`);
@@ -46,15 +47,6 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-// exports.getAllJobs = async (req, res) => {
-//   try {
-//     const jobs = await Job.find();
-//     res.json(jobs);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
 exports.getClientJobs = async (req, res) => {
   try {
     const jobs = await Job.find({ clientId: req.user._id });
@@ -63,6 +55,7 @@ exports.getClientJobs = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await Job.find({
@@ -141,7 +134,7 @@ exports.reactivateJob = async (req, res) => {
   }
 };
 
-//Worker endpoints
+// Worker endpoints
 
 exports.acceptJob = async (req, res) => {
   try {
@@ -157,7 +150,7 @@ exports.acceptJob = async (req, res) => {
         .json({ message: "Trabalho já aceito por outro trabalhador" });
     }
 
-    job.workerId = req.user.sub;
+    job.workerId = req.user._id;
     job.status = "in-progress";
     await job.save();
 
@@ -189,7 +182,7 @@ exports.cancelJob = async (req, res) => {
 
 exports.getMyJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ workerId: req.user.sub });
+    const jobs = await Job.find({ workerId: req.user._id });
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
