@@ -63,7 +63,7 @@ exports.login = async (req, res) => {
     res.json({
       access_token: token,
       role: user.role,
-      userId: user._id,
+      _id: user._id,
       fullName: user.fullName,
       email: user.email,
       cpf: user.cpf,
@@ -93,6 +93,7 @@ exports.getProfile = async (req, res) => {
     }
 
     res.json({
+      _id: user._id,
       username: user.username,
       hasAcceptedTerms: user.hasAcceptedTerms,
       termsAcceptedDate: user.termsAcceptedDate,

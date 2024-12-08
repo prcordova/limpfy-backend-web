@@ -1,4 +1,6 @@
 const Job = require("../models/job.model");
+const User = require("../models/user.model");
+const { io, connectedUsers } = require("../../server"); // Agora você importa connectedUsers
 
 exports.createJob = async (req, res) => {
   try {
@@ -136,9 +138,33 @@ exports.reactivateJob = async (req, res) => {
 
 // Worker endpoints
 
+// exports.acceptJob = async (req, res) => {
+//   try {
+//     console.log(`Accepting job with ID: ${req.params.id}`);
+//     const job = await Job.findById(req.params.id);
+//     if (!job) {
+//       return res.status(404).json({ message: "Trabalho não encontrado" });
+//     }
+
+//     if (job.workerId) {
+//       return res
+//         .status(400)
+//         .json({ message: "Trabalho já aceito por outro trabalhador" });
+//     }
+
+//     job.workerId = req.user._id;
+//     job.status = "in-progress";
+//     await job.save();
+
+//     res.json(job);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 exports.acceptJob = async (req, res) => {
   try {
-    console.log(`Accepting job with ID: ${req.params.id}`);
     const job = await Job.findById(req.params.id);
     if (!job) {
       return res.status(404).json({ message: "Trabalho não encontrado" });
@@ -154,13 +180,34 @@ exports.acceptJob = async (req, res) => {
     job.status = "in-progress";
     await job.save();
 
+    // Verifique se o clientId está definido no Job
+    if (!job.clientId) {
+      return res
+        .status(400)
+        .json({ message: "Client ID não encontrado no job" });
+    }
+
+    const client = await User.findById(job.clientId);
+    if (!client) {
+      return res.status(404).json({ message: "Cliente não encontrado" });
+    }
+
+    const socketId = connectedUsers[client._id.toString()];
+    if (!socketId) {
+      console.warn(`Cliente ${client._id} não está conectado no momento`);
+    } else {
+      io.to(socketId).emit("jobAccepted", {
+        message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
+      });
+      console.log(`Notificação enviada para o cliente com ID: ${client._id}`);
+    }
+
     res.json(job);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
 };
-
 exports.cancelJob = async (req, res) => {
   try {
     console.log(`Cancelling job with ID: ${req.params.id}`);
