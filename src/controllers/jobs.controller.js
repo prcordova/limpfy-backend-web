@@ -1,6 +1,6 @@
 const Job = require("../models/job.model");
 const User = require("../models/user.model");
-const { io, connectedUsers } = require("../../server"); // Agora você importa connectedUsers
+const { getIO, getConnectedUsers } = require("../socket");
 
 exports.createJob = async (req, res) => {
   try {
@@ -162,7 +162,6 @@ exports.reactivateJob = async (req, res) => {
 //     res.status(500).json({ message: err.message });
 //   }
 // };
-
 exports.acceptJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -180,26 +179,24 @@ exports.acceptJob = async (req, res) => {
     job.status = "in-progress";
     await job.save();
 
-    // Verifique se o clientId está definido no Job
     if (!job.clientId) {
       return res
         .status(400)
         .json({ message: "Client ID não encontrado no job" });
     }
 
-    const client = await User.findById(job.clientId);
-    if (!client) {
-      return res.status(404).json({ message: "Cliente não encontrado" });
-    }
+    const clientId = job.clientId.toString();
+    const users = getConnectedUsers(); // obtém o estado atualizado dos usuários conectados
+    const socketId = users[clientId];
 
-    const socketId = connectedUsers[client._id.toString()];
     if (!socketId) {
-      console.warn(`Cliente ${client._id} não está conectado no momento`);
+      console.warn(`⚠️ Cliente ${clientId} não está conectado`);
     } else {
+      const io = getIO(); // obtém a instância do io inicializada
       io.to(socketId).emit("jobAccepted", {
         message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
       });
-      console.log(`Notificação enviada para o cliente com ID: ${client._id}`);
+      console.log(`📡 Notificação enviada para o cliente com ID: ${clientId}`);
     }
 
     res.json(job);
