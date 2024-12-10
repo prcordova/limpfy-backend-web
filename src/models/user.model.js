@@ -23,6 +23,22 @@ const UserSchema = new mongoose.Schema(
     hasAcceptedTerms: { type: Boolean, default: false },
     termsAcceptedDate: { type: Date },
     faceVerified: { type: Boolean, default: false },
+
+    notifications: [
+      {
+        message: { type: String, required: true },
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
+        workerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        read: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+        type: {
+          type: String,
+          required: true,
+          enum: ["job", "profile", "news"],
+          default: "job",
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

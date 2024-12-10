@@ -177,7 +177,6 @@ exports.acceptJob = async (req, res) => {
 
     job.workerId = req.user._id;
     job.status = "in-progress";
-    await job.save();
 
     if (!job.clientId) {
       return res
@@ -185,19 +184,39 @@ exports.acceptJob = async (req, res) => {
         .json({ message: "Client ID não encontrado no job" });
     }
 
-    const clientId = job.clientId.toString();
-    const users = getConnectedUsers(); // obtém o estado atualizado dos usuários conectados
-    const socketId = users[clientId];
+    // Buscar o cliente no banco
+    const client = await User.findById(job.clientId);
+    if (!client) {
+      return res.status(404).json({ message: "Cliente não encontrado" });
+    }
 
-    if (!socketId) {
-      console.warn(`⚠️ Cliente ${clientId} não está conectado`);
-    } else {
-      const io = getIO(); // obtém a instância do io inicializada
+    const clientIdStr = job.clientId.toString();
+    const users = getConnectedUsers();
+    const socketId = users[clientIdStr];
+
+    // Enviar notificação via Socket.IO se o cliente estiver conectado
+    if (socketId) {
+      const io = getIO();
       io.to(socketId).emit("jobAccepted", {
         message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
       });
-      console.log(`📡 Notificação enviada para o cliente com ID: ${clientId}`);
+      console.log(
+        `📡 Notificação enviada via socket para o cliente com ID: ${clientIdStr}`
+      );
+    } else {
+      console.warn(`⚠️ Cliente ${clientIdStr} não está conectado`);
     }
+
+    // Adicionar notificação no documento do cliente
+    client.notifications.push({
+      message: `Seu trabalho "${job.title}" foi iniciado.`,
+      jobId: job._id,
+      workerId: job.workerId.toString(),
+      type: "job", // Definindo o tipo de notificação
+    });
+
+    await client.save(); // Salvar as alterações no cliente
+    await job.save(); // Salvar as alterações no job
 
     res.json(job);
   } catch (err) {
@@ -205,6 +224,7 @@ exports.acceptJob = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 exports.cancelJob = async (req, res) => {
   try {
     console.log(`Cancelling job with ID: ${req.params.id}`);

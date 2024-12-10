@@ -5,12 +5,15 @@ const {
   acceptTerms,
   verifyFace,
   updateProfile,
+  deleteUserNotifications,
 } = require("../controllers/users.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/roles.middleware");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+
+const { getUserNotifications } = require("../controllers/users.controller");
 
 // Configuração do multer para upload de arquivos
 const storage = multer.diskStorage({
@@ -46,5 +49,8 @@ router.put(
   upload.single("avatar"),
   updateProfile
 );
+
+router.get("/:id/notifications", authenticate, getUserNotifications);
+router.delete("/:id/notifications", authenticate, deleteUserNotifications);
 
 module.exports = router;
