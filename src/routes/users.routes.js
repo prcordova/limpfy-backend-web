@@ -5,6 +5,7 @@ const {
   acceptTerms,
   verifyFace,
   updateProfile,
+  resolveDispute,
 } = require("../controllers/users.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/roles.middleware");

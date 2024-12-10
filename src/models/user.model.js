@@ -9,7 +9,11 @@ const UserSchema = new mongoose.Schema(
     cpf: { type: String, required: true, unique: true },
     birthDate: { type: Date, required: true },
     password: { type: String, required: true },
-    role: { type: String, enum: ["client", "worker"], default: "client" },
+    role: {
+      type: String,
+      enum: ["client", "worker", "admin"],
+      default: "client",
+    },
     address: {
       cep: { type: String, required: true },
       street: { type: String, required: true },
@@ -37,6 +41,16 @@ const UserSchema = new mongoose.Schema(
           enum: ["job", "profile", "news"],
           default: "job",
         },
+      },
+    ],
+
+    // Avaliações e comentários
+    ratings: [
+      {
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
+        rating: { type: Number, min: 1, max: 5, required: true },
+        comment: { type: String },
+        createdAt: { type: Date, default: Date.now },
       },
     ],
   },

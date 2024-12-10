@@ -1,6 +1,8 @@
 const Job = require("../models/job.model");
 const User = require("../models/user.model");
 const { getIO, getConnectedUsers } = require("../socket");
+const path = require("path");
+const fs = require("fs");
 
 exports.createJob = async (req, res) => {
   try {
@@ -240,6 +242,307 @@ exports.getMyJobs = async (req, res) => {
 
     res.json(jobs);
   } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+//trabalho completo :
+exports.completeJob = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    // Verifica se o usuário logado é o trabalhador do job
+    if (!job.workerId || job.workerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Você não tem permissão para concluir este trabalho",
+      });
+    }
+
+    // Se já estiver concluído ou cancelado
+    if (["completed", "cancelled-by-client"].includes(job.status)) {
+      return res
+        .status(400)
+        .json({ message: "Trabalho já finalizado ou cancelado" });
+    }
+
+    // Caso o trabalhador envie a foto final do trabalho
+    let cleanedPhoto = null;
+    if (req.file) {
+      // Criar a pasta do usuário, caso não exista
+      const workerId = req.user._id.toString();
+      const jobCompletedDir = path.join(
+        __dirname,
+        "../../public/uploads/users",
+        workerId,
+        "jobsCompleted"
+      );
+
+      if (!fs.existsSync(jobCompletedDir)) {
+        fs.mkdirSync(jobCompletedDir, { recursive: true });
+      }
+
+      // Mover o arquivo do temp para a pasta do usuário
+      const cleanedPhotoPath = path.join(jobCompletedDir, req.file.filename);
+      fs.renameSync(req.file.path, cleanedPhotoPath);
+
+      // Salvar o caminho relativo
+      cleanedPhoto = `uploads/users/${workerId}/jobsCompleted/${req.file.filename}`;
+    }
+
+    job.status = "waiting-for-rating";
+    job.completedAt = new Date();
+    job.disputeUntil = new Date(Date.now() + 30 * 60000); // 30 min
+    if (cleanedPhoto) {
+      job.cleanedPhoto = cleanedPhoto;
+    }
+    await job.save();
+
+    // Notificar o cliente
+    const client = await User.findById(job.clientId);
+    if (!client) {
+      return res.status(404).json({ message: "Cliente não encontrado" });
+    }
+
+    client.notifications.push({
+      message: `Seu trabalho "${job.title}" foi concluído. Você tem 30 minutos para contestar antes da liberação do pagamento.`,
+      jobId: job._id,
+      workerId: job.workerId,
+      type: "job",
+    });
+    await client.save();
+
+    // Socket.IO se o cliente estiver conectado
+    const { getIO, getConnectedUsers } = require("../socket");
+    const users = getConnectedUsers();
+    const socketId = users[job.clientId.toString()];
+
+    if (socketId) {
+      const io = getIO();
+      io.to(socketId).emit("jobCompleted", {
+        message: `O trabalho "${job.title}" foi concluído.`,
+      });
+    }
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.openDispute = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job)
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+
+    // Apenas o cliente que criou o job pode abrir disputa
+    if (job.clientId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Permissão negada" });
+    }
+
+    // Se o job não estiver completed ou in-progress, não faz sentido abrir disputa
+    if (job.status !== "completed") {
+      return res.status(400).json({
+        message: "Somente trabalhos concluídos podem entrar em disputa",
+      });
+    }
+
+    job.status = "dispute";
+    job.disputeStatus = "open";
+    job.disputeReason = req.body.reason || "Sem razão fornecida";
+    await job.save();
+
+    // Notificar admin via socket (se desejar) ou via notificação
+    // Exemplo: enviar notificação a um admin global - depende da sua lógica.
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+//ADMIN envia mensagem de disputa
+exports.sendDisputeMessage = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job)
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+
+    if (job.status !== "dispute") {
+      return res
+        .status(400)
+        .json({ message: "Este trabalho não está em disputa." });
+    }
+
+    // Verifica o role do usuário a partir de req.user.role
+    // Apenas admin, cliente (job.clientId) ou trabalhador (job.workerId) podem enviar
+    // Mas você pode restringir ainda mais se necessário (por ex, se trabalhador não pode enviar após disputa aberta).
+    let senderRole = req.user.role; // 'admin', 'client', 'worker'
+
+    // Cliente só envia se job.clientId === req.user._id
+    if (
+      senderRole === "client" &&
+      job.clientId.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Permissão negada" });
+    }
+
+    // Trabalhador só envia mensagem se assim for permitido pela lógica (por ex, pode ser bloqueado na disputa)
+    if (
+      senderRole === "worker" &&
+      job.workerId.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Permissão negada" });
+    }
+
+    // Admin pode sempre enviar, assumindo que req.user.role === 'admin'
+
+    job.disputeMessages.push({
+      senderId: req.user._id,
+      senderRole: senderRole,
+      message: req.body.message,
+    });
+
+    await job.save();
+
+    // Enviar via socket.io para as partes envolvidas (cliente, trabalhador, admin) se desejado
+    // ...
+
+    res.json({ message: "Mensagem enviada", job });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+//resolve disputa
+exports.resolveDispute = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job)
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+
+    // Verificar role admin
+    if (req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "Apenas admin pode resolver disputas" });
+    }
+
+    if (job.status !== "dispute" || job.disputeStatus !== "open") {
+      return res.status(400).json({ message: "A disputa não está aberta." });
+    }
+
+    // Decisão do admin: liberar pagamento ou não
+    // Suponha que req.body.action seja "release-payment" ou "refund-client"
+    const action = req.body.action;
+    if (!action) {
+      return res.status(400).json({ message: "Ação não fornecida." });
+    }
+
+    job.disputeStatus = "resolved";
+    job.status = "completed";
+    job.disputeResolvedAt = new Date();
+
+    if (action === "release-payment") {
+      job.paymentReleased = true;
+      // Lógica de pagamento ao trabalhador...
+    } else if (action === "refund-client") {
+      job.paymentReleased = false;
+      // Lógica de reembolso ao cliente...
+    } else {
+      return res.status(400).json({ message: "Ação inválida." });
+    }
+
+    await job.save();
+
+    // Notificar cliente e trabalhador do resultado via notificação e/ou socket
+    // ...
+
+    res.json({ message: "Disputa resolvida com sucesso.", job });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.rateJob = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const { rating, comment } = req.body;
+
+    // Buscar o job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    // Verificar se o usuário logado é o cliente
+    if (job.clientId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Você não tem permissão para avaliar este trabalho.",
+      });
+    }
+
+    // Verificar se o trabalho está concluído
+    if (job.status !== "waiting-for-rating") {
+      return res
+        .status(400)
+        .json({ message: "Você só pode avaliar trabalhos concluídos." });
+    }
+
+    // Verificar se já foi avaliado
+    if (job.isRated) {
+      return res
+        .status(400)
+        .json({ message: "Este trabalho já foi avaliado." });
+    }
+
+    // Validar nota
+    const parsedRating = parseInt(rating, 10);
+    if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res
+        .status(400)
+        .json({ message: "A avaliação deve ser um número entre 1 e 5." });
+    }
+
+    // Buscar o trabalhador para gravar a avaliação nele
+    if (!job.workerId) {
+      return res
+        .status(400)
+        .json({ message: "Não há um trabalhador associado a este trabalho." });
+    }
+
+    const worker = await User.findById(job.workerId);
+    if (!worker) {
+      return res.status(404).json({ message: "Trabalhador não encontrado." });
+    }
+
+    // Adicionar a avaliação ao trabalhador
+    worker.ratings.push({
+      jobId: job._id,
+      rating: parsedRating,
+      comment: comment || "",
+      createdAt: new Date(),
+    });
+
+    await worker.save();
+
+    // Atualizar o job para indicar que foi avaliado e completado
+    job.status = "completed";
+
+    // Marcar o job como avaliado
+    job.isRated = true;
+    await job.save();
+
+    res.json({ message: "Avaliação enviada com sucesso." });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: err.message });
   }
 };

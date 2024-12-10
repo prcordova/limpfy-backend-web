@@ -6,7 +6,14 @@ const JobSchema = new mongoose.Schema(
     description: { type: String, required: true },
     status: {
       type: String,
-      enum: ["pending", "in-progress", "completed", "cancelled-by-client"],
+      enum: [
+        "pending",
+        "in-progress",
+        "completed",
+        "cancelled-by-client",
+        "dispute",
+        "waiting-for-rating",
+      ],
       default: "pending",
     },
     workerQuantity: { type: Number, required: true },
@@ -30,7 +37,14 @@ const JobSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    isRated: { type: Boolean, default: false }, // Indica se o cliente já avaliou o trabalho
+
     workerName: { type: String },
+
+    // Novos campos para fluxo de conclusão
+    cleanedPhoto: { type: String }, // Caminho/URL da foto da área limpa após conclusão
+    completedAt: { type: Date }, // Data/hora em que o trabalho foi concluído
+    disputeUntil: { type: Date }, // Data/hora até quando o cliente pode contestar
   },
   { timestamps: true }
 );
