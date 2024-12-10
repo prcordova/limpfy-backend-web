@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth.routes");
 const jobsRoutes = require("./routes/jobs.routes");
 const usersRoutes = require("./routes/users.routes");
 const ocrRoutes = require("./routes/ocr.routes");
+const notificationsRoutes = require("./routes/notifications.routes");
 const { globalErrorHandler } = require("./utils/error.handler");
 
 const app = express();
@@ -24,6 +25,9 @@ app.use("/auth", authRoutes);
 app.use("/jobs", jobsRoutes);
 app.use("/users", usersRoutes);
 app.use("/ocr", ocrRoutes);
+
+// Rota de notificações
+app.use("/notifications", notificationsRoutes);
 
 // Static files
 app.use("/models", express.static(path.join(__dirname, "public/models")));
