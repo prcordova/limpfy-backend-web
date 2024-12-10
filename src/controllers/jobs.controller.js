@@ -49,15 +49,21 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
+//busca trabalhos do cliente
 exports.getClientJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ clientId: req.user._id });
+    const jobs = await Job.find({ clientId: req.user._id }).populate(
+      "workerId",
+      "fullName"
+    );
+
     res.status(200).json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
+//busca novos trabalhos na aba todos para trabalhador
 exports.getJobs = async (req, res) => {
   try {
     const jobs = await Job.find({
@@ -69,6 +75,7 @@ exports.getJobs = async (req, res) => {
   }
 };
 
+//busca trabalho por id
 exports.getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -81,6 +88,7 @@ exports.getJobById = async (req, res) => {
   }
 };
 
+//busca trabalhos por id do cliente
 exports.getJobsByUserId = async (req, res) => {
   try {
     const jobs = await Job.find({ clientId: req.params.userId });
@@ -90,6 +98,7 @@ exports.getJobsByUserId = async (req, res) => {
   }
 };
 
+//atualiza trabalho
 exports.updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -113,6 +122,7 @@ exports.updateJob = async (req, res) => {
   }
 };
 
+//reativa trabalho
 exports.reactivateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -138,30 +148,6 @@ exports.reactivateJob = async (req, res) => {
 
 // Worker endpoints
 
-// exports.acceptJob = async (req, res) => {
-//   try {
-//     console.log(`Accepting job with ID: ${req.params.id}`);
-//     const job = await Job.findById(req.params.id);
-//     if (!job) {
-//       return res.status(404).json({ message: "Trabalho não encontrado" });
-//     }
-
-//     if (job.workerId) {
-//       return res
-//         .status(400)
-//         .json({ message: "Trabalho já aceito por outro trabalhador" });
-//     }
-
-//     job.workerId = req.user._id;
-//     job.status = "in-progress";
-//     await job.save();
-
-//     res.json(job);
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: err.message });
-//   }
-// };
 exports.acceptJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -244,9 +230,14 @@ exports.cancelJob = async (req, res) => {
   }
 };
 
+//Busca trabalhos do trabalhador
 exports.getMyJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ workerId: req.user._id });
+    const jobs = await Job.find({ workerId: req.user._id }).populate(
+      "clientId",
+      "fullName"
+    );
+
     res.json(jobs);
   } catch (err) {
     res.status(500).json({ message: err.message });
