@@ -17,6 +17,7 @@ const {
   resolveDispute,
   sendDisputeMessage,
   rateJob,
+  completeOrder,
 } = require("../controllers/jobs.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const multer = require("multer");
@@ -50,5 +51,6 @@ router.post("/:id/open-dispute", authenticate, openDispute);
 router.post("/:id/resolve-dispute", authenticate, resolveDispute);
 router.post("/:id/send-dispute-message", authenticate, sendDisputeMessage);
 router.post("/:id/rate", authenticate, rateJob);
+router.post("/:id/complete-order", authenticate, completeOrder);
 
 module.exports = router;

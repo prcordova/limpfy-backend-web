@@ -148,6 +148,46 @@ exports.reactivateJob = async (req, res) => {
   }
 };
 
+exports.completeOrder = async (req, res) => {
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
+
+    // Verifica se o usuário logado é o cliente
+    if (job.clientId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Você não tem permissão para completar este pedido.",
+      });
+    }
+
+    // Verifica se o status do job é waiting-for-rating
+    if (job.status !== "waiting-for-rating") {
+      return res.status(400).json({
+        message:
+          "A conclusão só pode ser aceita se o trabalho estiver aguardando avaliação.",
+      });
+    }
+
+    // Marca o trabalho como concluído
+    job.status = "completed";
+    job.completedAt = new Date();
+    // Caso haja lógica de pagamento, liberar pagamento aqui:
+    // job.paymentReleased = true;
+
+    await job.save();
+
+    // Opcional: enviar notificação via socket ou notificação para o trabalhador
+    // ...
+
+    res.json(job);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Worker endpoints
 
 exports.acceptJob = async (req, res) => {
@@ -246,7 +286,7 @@ exports.getMyJobs = async (req, res) => {
   }
 };
 
-//trabalho completo :
+//trabalho completo // Trabalhador concluindo trabalho :
 exports.completeJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -345,7 +385,7 @@ exports.openDispute = async (req, res) => {
     }
 
     // Se o job não estiver completed ou in-progress, não faz sentido abrir disputa
-    if (job.status !== "completed") {
+    if (job.status !== "waiting-for-rating") {
       return res.status(400).json({
         message: "Somente trabalhos concluídos podem entrar em disputa",
       });
@@ -487,13 +527,6 @@ exports.rateJob = async (req, res) => {
       return res.status(403).json({
         message: "Você não tem permissão para avaliar este trabalho.",
       });
-    }
-
-    // Verificar se o trabalho está concluído
-    if (job.status !== "waiting-for-rating") {
-      return res
-        .status(400)
-        .json({ message: "Você só pode avaliar trabalhos concluídos." });
     }
 
     // Verificar se já foi avaliado
