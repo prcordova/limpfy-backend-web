@@ -511,6 +511,7 @@ exports.resolveDispute = async (req, res) => {
   }
 };
 
+//client rates job after completion
 exports.rateJob = async (req, res) => {
   try {
     const jobId = req.params.id;

@@ -3,7 +3,12 @@ const mongoose = require("mongoose");
 const UserSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true },
-    avatar: { type: String },
+    avatars: [
+      {
+        path: String,
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true },
     cpf: { type: String, required: true, unique: true },

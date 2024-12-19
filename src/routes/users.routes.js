@@ -17,11 +17,8 @@ const fs = require("fs");
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const userId = req.params.id;
-    const uploadPath = path.join(
-      __dirname,
-      "../../public/uploads/users",
-      userId
-    );
+    // Ao invés de __dirname, use process.cwd()
+    const uploadPath = path.join(process.cwd(), "public/uploads/users", userId);
     fs.mkdirSync(uploadPath, { recursive: true });
     cb(null, uploadPath);
   },
@@ -29,6 +26,7 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
+
 const upload = multer({ storage });
 
 const router = express.Router();

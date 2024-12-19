@@ -14,11 +14,24 @@ exports.getUsers = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    console.log("Buscando usuário com ID:", req.params.id); // Adiciona log para verificar o ID do usuário
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
+
+    let averageRating = null;
+    if (user.role === "worker" && user.ratings && user.ratings.length > 0) {
+      const sum = user.ratings.reduce((acc, r) => acc + r.rating, 0);
+      averageRating = sum / user.ratings.length;
+    }
+
+    // Pegar o último avatar, se existir
+    let finalAvatar = null;
+    if (user.avatars && user.avatars.length > 0) {
+      const last = user.avatars[user.avatars.length - 1].path;
+      finalAvatar = `/uploads/${last}`;
+    }
+
     res.json({
       fullName: user.fullName,
       email: user.email,
@@ -32,7 +45,8 @@ exports.getUserById = async (req, res) => {
       faceVerified: user.faceVerified,
       role: user.role,
       status: user.status,
-      avatar: user.avatar ? `/${user.avatar}` : null, // Corrige o caminho do avatar
+      avatar: finalAvatar,
+      averageRating: averageRating,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -42,48 +56,54 @@ exports.getUserById = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.params.id;
-    const updates = req.body;
-    console.log("entrou no updateProfile", userId, updates);
+    const updates = {};
 
-    // Se houver um arquivo de avatar, atualize o caminho do avatar
+    if (req.body.address) {
+      updates.address = JSON.parse(req.body.address);
+    }
+
     if (req.file) {
       const avatarDir = path.join(
-        __dirname,
-        "../../public/uploads/users",
+        process.cwd(),
+        "public/uploads/users",
         userId,
         "avatar"
       );
       if (!fs.existsSync(avatarDir)) {
         fs.mkdirSync(avatarDir, { recursive: true });
       }
-      const avatarPath = path.join(avatarDir, req.file.filename);
-      fs.renameSync(req.file.path, avatarPath); // Move o arquivo para a pasta correta
-      updates.avatar = `uploads/users/${userId}/avatar/${req.file.filename}`;
-    }
 
-    // Atualize o endereço se fornecido
-    if (updates.address) {
-      updates.address = JSON.parse(updates.address);
+      const avatarPath = path.join(avatarDir, req.file.filename);
+      fs.renameSync(req.file.path, avatarPath);
+
+      updates.$push = {
+        avatars: {
+          path: `users/${userId}/avatar/${req.file.filename}`,
+          uploadedAt: new Date(),
+        },
+      };
     }
 
     const user = await User.findByIdAndUpdate(userId, updates, { new: true });
-
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
-    // Gere um novo token JWT
     const token = jwt.sign(
       { sub: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
-    // Armazena o novo token em um cookie
     res.cookie("session-token", token, {
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000,
     });
+
+    const latestAvatar =
+      user.avatars && user.avatars.length > 0
+        ? user.avatars[user.avatars.length - 1].path
+        : null;
 
     res.json({
       access_token: token,
@@ -98,7 +118,7 @@ exports.updateProfile = async (req, res) => {
       hasAcceptedTerms: user.hasAcceptedTerms,
       termsAcceptedDate: user.termsAcceptedDate,
       workerDetails: user.workerDetails,
-      avatar: user.avatar ? `/uploads/${user.avatar}` : null, // Corrige o caminho do avatar
+      avatar: latestAvatar ? `/uploads/${latestAvatar}` : null,
     });
   } catch (err) {
     console.error("Error updating profile:", err);

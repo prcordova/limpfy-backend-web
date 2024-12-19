@@ -10,11 +10,12 @@ const notificationsRoutes = require("./routes/notifications.routes");
 const { globalErrorHandler } = require("./utils/error.handler");
 
 const app = express();
+app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
+
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Middleware para servir arquivos estáticos da pasta uploads
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Outros middlewares
 app.use(cors());
