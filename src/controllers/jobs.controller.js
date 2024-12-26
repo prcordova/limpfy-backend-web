@@ -51,13 +51,60 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-//busca trabalhos do cliente
+// //busca trabalhos do cliente
+// exports.getClientJobs = async (req, res) => {
+//   try {
+//     // Popula workerId com fullName, avatars, ratings e média (averageRating)
+//     // Você precisará criar um virtual ou pipeline de agregação para calcular averageRating,
+//     // ou pré-calcular no momento da requisição.
+//     // Por simplicidade, supondo que averageRating já exista ou seja calculado no momento da consulta:
+//     const jobs = await Job.find({ clientId: req.user._id }).populate({
+//       path: "workerId",
+//       select: "fullName avatars ratings",
+//     });
+
+//     // Calcular averageRating do trabalhador aqui, se necessário:
+//     // Ou caso já esteja armazenado no banco, só retornar.
+//     // Também pegar últimos 3 comentários já filtrados no front.
+
+//     // Aqui você pode iterar sobre cada job e calcular averageRating se não existir:
+//     for (let j of jobs) {
+//       if (j.workerId && j.workerId.ratings && j.workerId.ratings.length > 0) {
+//         const sum = j.workerId.ratings.reduce((acc, r) => acc + r.rating, 0);
+//         const avg = sum / j.workerId.ratings.length;
+//         j.workerId.averageRating = avg;
+//       } else if (j.workerId) {
+//         j.workerId.averageRating = 0;
+//       }
+//     }
+
+//     res.status(200).json(jobs);
+//   } catch (err) {
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 exports.getClientJobs = async (req, res) => {
   try {
     const jobs = await Job.find({ clientId: req.user._id }).populate(
       "workerId",
-      "fullName"
+      "fullName avatars ratings"
     );
+
+    // Calcular a média de avaliações do trabalhador
+    for (const job of jobs) {
+      if (
+        job.workerId &&
+        job.workerId.ratings &&
+        job.workerId.ratings.length > 0
+      ) {
+        const sum = job.workerId.ratings.reduce((acc, r) => acc + r.rating, 0);
+        job.workerId.averageRating = sum / job.workerId.ratings.length;
+        console.log("job.workerId.averageRating", job.workerId.averageRating);
+      } else if (job.workerId) {
+        job.workerId.averageRating = 0;
+      }
+    }
 
     res.status(200).json(jobs);
   } catch (err) {
@@ -313,58 +360,20 @@ exports.completeJob = async (req, res) => {
     if (req.file) {
       // Criar a pasta do usuário, caso não exista
       const workerId = req.user._id.toString();
-      const jobCompletedDir = path.join(
-        __dirname,
-        "../../public/uploads/users",
-        workerId,
-        "jobsCompleted"
-      );
-
-      if (!fs.existsSync(jobCompletedDir)) {
-        fs.mkdirSync(jobCompletedDir, { recursive: true });
+      const uploadPath = path.join(__dirname, "../public/uploads", workerId);
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
       }
 
-      // Mover o arquivo do temp para a pasta do usuário
-      const cleanedPhotoPath = path.join(jobCompletedDir, req.file.filename);
-      fs.renameSync(req.file.path, cleanedPhotoPath);
-
-      // Salvar o caminho relativo
-      cleanedPhoto = `uploads/users/${workerId}/jobsCompleted/${req.file.filename}`;
+      // Mover o arquivo para a pasta do usuário
+      const filePath = path.join(uploadPath, req.file.filename);
+      fs.renameSync(req.file.path, filePath);
+      cleanedPhoto = `/uploads/${workerId}/${req.file.filename}`;
     }
 
-    job.status = "waiting-for-rating";
-    job.completedAt = new Date();
-    job.disputeUntil = new Date(Date.now() + 30 * 60000); // 30 min
-    if (cleanedPhoto) {
-      job.cleanedPhoto = cleanedPhoto;
-    }
+    job.status = "completed";
+    job.cleanedPhoto = cleanedPhoto;
     await job.save();
-
-    // Notificar o cliente
-    const client = await User.findById(job.clientId);
-    if (!client) {
-      return res.status(404).json({ message: "Cliente não encontrado" });
-    }
-
-    client.notifications.push({
-      message: `Seu trabalho "${job.title}" foi concluído. Você tem 30 minutos para contestar antes da liberação do pagamento.`,
-      jobId: job._id,
-      workerId: job.workerId,
-      type: "job",
-    });
-    await client.save();
-
-    // Socket.IO se o cliente estiver conectado
-    const { getIO, getConnectedUsers } = require("../socket");
-    const users = getConnectedUsers();
-    const socketId = users[job.clientId.toString()];
-
-    if (socketId) {
-      const io = getIO();
-      io.to(socketId).emit("jobCompleted", {
-        message: `O trabalho "${job.title}" foi concluído.`,
-      });
-    }
 
     res.json(job);
   } catch (err) {
