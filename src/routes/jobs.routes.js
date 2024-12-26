@@ -41,10 +41,6 @@ router.put("/:id/update", authenticate, updateJob);
 router.post("/:id/reactivate", authenticate, reactivateJob);
 router.post(
   "/:id/complete",
-  (req, res, next) => {
-    console.log("⏰ Chegou na rota /:id/complete");
-    next();
-  },
   authenticate,
   upload.single("cleanedPhoto"),
   completeJob
