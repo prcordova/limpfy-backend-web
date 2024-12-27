@@ -1,5 +1,6 @@
 const express = require("express");
-
+const path = require("path");
+const fs = require("fs");
 const {
   createJob,
   getJobs,
@@ -22,16 +23,49 @@ const {
 const { authenticate } = require("../middlewares/auth.middleware");
 const multer = require("multer");
 
-const upload = multer({ dest: "tmp/uploads" });
+//
+// 1. Configurando o storage do Multer para salvar diretamente
+//    em: public/uploads/users/:workerId/jobs/:jobId/cleans
+//
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // req.params.id = jobId
+    // req.user._id = ID do trabalhador logado
+    const workerId = req.user._id.toString();
+    const jobId = req.params.id;
+
+    // Monta o caminho final
+    const cleansDir = path.join(
+      process.cwd(),
+      "public",
+      "uploads",
+      "users",
+      workerId,
+      "jobs",
+      jobId,
+      "cleans"
+    );
+
+    fs.mkdirSync(cleansDir, { recursive: true });
+    cb(null, cleansDir);
+  },
+  filename: (req, file, cb) => {
+    // Poderia renomear como quiser; aqui usando timestamp + nome original
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+
+const upload = multer({ storage });
+
 const router = express.Router();
 
-// cliente
+// ----------------- Rotas para cliente -----------------
 router.post("/create", authenticate, createJob);
 router.get("/", authenticate, getJobs);
 router.get("/my-jobs", authenticate, getMyJobs);
 router.get("/client-jobs", authenticate, getClientJobs);
 
-// trabalhador
+// ----------------- Rotas para trabalhador -----------------
 router.get("/:id", authenticate, getJobById);
 router.get("/user/:userId", authenticate, getJobsByUserId);
 router.post("/:id/accept", authenticate, acceptJob);
@@ -39,15 +73,17 @@ router.post("/:id/cancel", authenticate, cancelJob);
 router.post("/:id/cancel-order", authenticate, cancelOrder);
 router.put("/:id/update", authenticate, updateJob);
 router.post("/:id/reactivate", authenticate, reactivateJob);
+
+// Rota principal de “completar trabalho” com envio de foto
 router.post(
   "/:id/complete",
   authenticate,
   upload.single("cleanedPhoto"),
   completeJob
 );
-//disputas
-router.post("/:id/open-dispute", authenticate, openDispute);
 
+// ----------------- Rotas de disputa -----------------
+router.post("/:id/open-dispute", authenticate, openDispute);
 router.post("/:id/resolve-dispute", authenticate, resolveDispute);
 router.post("/:id/send-dispute-message", authenticate, sendDisputeMessage);
 router.post("/:id/rate", authenticate, rateJob);

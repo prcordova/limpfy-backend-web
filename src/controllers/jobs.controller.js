@@ -345,9 +345,11 @@ exports.completeJob = async (req, res) => {
 
     // Verifica se o usuário logado é o trabalhador do job
     if (!job.workerId || job.workerId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        message: "Você não tem permissão para concluir este trabalho",
-      });
+      return res
+        .status(403)
+        .json({
+          message: "Você não tem permissão para concluir este trabalho",
+        });
     }
 
     // Se já estiver concluído ou cancelado
@@ -357,34 +359,19 @@ exports.completeJob = async (req, res) => {
         .json({ message: "Trabalho já finalizado ou cancelado" });
     }
 
-    // Caso o trabalhador envie a foto final do trabalho
     let cleanedPhoto = null;
     if (req.file) {
+      // Como o Multer (diskStorage) já salvou direto no destino,
+      // só precisamos guardar o path relativo para exibir no front:
+      // Se você definiu a pasta em:
+      //   public/uploads/users/<workerId>/jobs/<jobId>/cleans
+      // então a rota de acesso é algo como:
+      //   /uploads/users/<workerId>/jobs/<jobId>/cleans/<arquivo>
       const workerId = req.user._id.toString();
-
-      // Cria o diretório: public/uploads/users/:workerId/jobs/cleans
-      const cleansDir = path.join(
-        process.cwd(), // <-- Em vez de __dirname
-        "public/uploads/users",
-        workerId,
-        "jobs",
-        "cleans"
-      );
-
-      if (!fs.existsSync(cleansDir)) {
-        fs.mkdirSync(cleansDir, { recursive: true });
-      }
-
-      // Move o arquivo temporário para o novo local
-      const newFilePath = path.join(cleansDir, req.file.filename);
-      fs.renameSync(req.file.path, newFilePath);
-
-      // Monta a string que será salva no banco, para uso no front
-      // Assim o front pode exibir via <img src={job.cleanedPhoto} />
-      cleanedPhoto = `/uploads/users/${workerId}/jobs/cleans/${req.file.filename}`;
+      const jobId = req.params.id;
+      cleanedPhoto = `/uploads/users/${workerId}/jobs/${jobId}/cleans/${req.file.filename}`;
     }
 
-    // Marca o job como "completed" e salva o path da imagem
     job.status = "completed";
     job.cleanedPhoto = cleanedPhoto;
     await job.save();
