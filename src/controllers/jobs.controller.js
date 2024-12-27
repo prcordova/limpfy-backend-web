@@ -334,7 +334,9 @@ exports.getMyJobs = async (req, res) => {
 };
 
 //trabalho completo // Trabalhador concluindo trabalho :
+
 exports.completeJob = async (req, res) => {
+  console.log("Completing job with ID:", req.params.id);
   try {
     const job = await Job.findById(req.params.id);
     if (!job) {
@@ -358,27 +360,39 @@ exports.completeJob = async (req, res) => {
     // Caso o trabalhador envie a foto final do trabalho
     let cleanedPhoto = null;
     if (req.file) {
-      // Criar a pasta do usuário, caso não exista
       const workerId = req.user._id.toString();
-      const uploadPath = path.join(__dirname, "../public/uploads", workerId);
-      if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
+
+      // Cria o diretório: public/uploads/users/:workerId/jobs/cleans
+      const cleansDir = path.join(
+        process.cwd(), // <-- Em vez de __dirname
+        "public/uploads/users",
+        workerId,
+        "jobs",
+        "cleans"
+      );
+
+      if (!fs.existsSync(cleansDir)) {
+        fs.mkdirSync(cleansDir, { recursive: true });
       }
 
-      // Mover o arquivo para a pasta do usuário
-      const filePath = path.join(uploadPath, req.file.filename);
-      fs.renameSync(req.file.path, filePath);
-      cleanedPhoto = `/uploads/${workerId}/${req.file.filename}`;
+      // Move o arquivo temporário para o novo local
+      const newFilePath = path.join(cleansDir, req.file.filename);
+      fs.renameSync(req.file.path, newFilePath);
+
+      // Monta a string que será salva no banco, para uso no front
+      // Assim o front pode exibir via <img src={job.cleanedPhoto} />
+      cleanedPhoto = `/uploads/users/${workerId}/jobs/cleans/${req.file.filename}`;
     }
 
+    // Marca o job como "completed" e salva o path da imagem
     job.status = "completed";
     job.cleanedPhoto = cleanedPhoto;
     await job.save();
 
-    res.json(job);
+    return res.json(job);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: err.message });
+    console.error("Error completing job:", err);
+    return res.status(500).json({ message: err.message });
   }
 };
 
