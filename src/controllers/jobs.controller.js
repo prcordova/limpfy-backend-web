@@ -100,7 +100,6 @@ exports.getClientJobs = async (req, res) => {
       ) {
         const sum = job.workerId.ratings.reduce((acc, r) => acc + r.rating, 0);
         job.workerId.averageRating = sum / job.workerId.ratings.length;
-        console.log("job.workerId.averageRating", job.workerId.averageRating);
       } else if (job.workerId) {
         job.workerId.averageRating = 0;
       }
@@ -345,11 +344,9 @@ exports.completeJob = async (req, res) => {
 
     // Verifica se o usuário logado é o trabalhador do job
     if (!job.workerId || job.workerId.toString() !== req.user._id.toString()) {
-      return res
-        .status(403)
-        .json({
-          message: "Você não tem permissão para concluir este trabalho",
-        });
+      return res.status(403).json({
+        message: "Você não tem permissão para concluir este trabalho",
+      });
     }
 
     // Se já estiver concluído ou cancelado

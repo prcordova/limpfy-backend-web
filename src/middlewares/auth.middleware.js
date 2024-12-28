@@ -18,7 +18,7 @@ exports.authenticate = async (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("Payload:", payload); // Adiciona log para verificar o payload
+    // console.log("Payload:", payload); // Adiciona log para verificar o payload
 
     const user = await User.findById(payload.sub); // Corrige para usar payload.sub
     if (!user) {

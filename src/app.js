@@ -1,3 +1,4 @@
+// app.js
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
@@ -8,30 +9,26 @@ const usersRoutes = require("./routes/users.routes");
 const ocrRoutes = require("./routes/ocr.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
 const { globalErrorHandler } = require("./utils/error.handler");
-
+const paymentsRoutes = require("./routes/payments.routes");
 const app = express();
+
+// Middlewares para servir arquivos estáticos
 app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
-
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-
-// Middleware para servir arquivos estáticos da pasta uploads
+app.use("/models", express.static(path.join(__dirname, "public/models")));
 
 // Outros middlewares
+app.use(cookieParser());
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" })); // Definindo limite para o body
 
 // Rotas
 app.use("/auth", authRoutes);
 app.use("/jobs", jobsRoutes);
 app.use("/users", usersRoutes);
 app.use("/ocr", ocrRoutes);
-
-// Rota de notificações
+app.use("/payments", paymentsRoutes);
 app.use("/notifications", notificationsRoutes);
-
-// Static files
-app.use("/models", express.static(path.join(__dirname, "public/models")));
 
 // Manipulador de erros global
 app.use(globalErrorHandler);

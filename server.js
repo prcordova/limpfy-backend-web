@@ -1,7 +1,7 @@
 // server.js
+require("dotenv").config();
 const app = require("./src/app");
 const mongoose = require("mongoose");
-require("dotenv").config();
 const http = require("http");
 const { configureSocket } = require("./src/socket");
 

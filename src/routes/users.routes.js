@@ -9,6 +9,8 @@ const {
 } = require("../controllers/users.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/roles.middleware");
+const { selfOrAdmin } = require("../middlewares/selfOrAdmin.middleware");
+
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
@@ -32,18 +34,16 @@ const upload = multer({ storage });
 const router = express.Router();
 
 router.get("/", authenticate, authorizeRoles("admin"), getUsers);
-router.get("/:id", authenticate, getUserById);
 
-// Terms and face verification
-router.post("/:id/accept-terms", authenticate, acceptTerms);
-router.post("/:id/verify-face", authenticate, verifyFace);
-
-// Update profile
+router.get("/:id", authenticate, selfOrAdmin, getUserById);
 router.put(
   "/:id/update-profile",
   authenticate,
+  selfOrAdmin,
   upload.single("avatar"),
   updateProfile
 );
+router.post("/:id/accept-terms", authenticate, selfOrAdmin, acceptTerms);
+router.post("/:id/verify-face", authenticate, selfOrAdmin, verifyFace);
 
 module.exports = router;
