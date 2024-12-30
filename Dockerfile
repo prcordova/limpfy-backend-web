@@ -20,4 +20,4 @@ EXPOSE 8080
 ENV NODE_ENV=production
 
 # Defina o comando para rodar a aplicação
-CMD [ "node", "index.js" ]
+CMD [ "node", "server.js" ]
