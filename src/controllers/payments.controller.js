@@ -6,6 +6,7 @@ const Job = require("../models/job.model");
 const successUrl = process.env.STRIPE_SUCCESS_URL;
 const cancelUrl = process.env.STRIPE_CANCEL_URL;
 
+// Criação da sessão de checkout
 exports.createCheckoutSession = async (req, res) => {
   try {
     const {
@@ -22,7 +23,6 @@ exports.createCheckoutSession = async (req, res) => {
       useDefaultAddress,
     } = req.body;
 
-    // Validação básica dos campos obrigatórios
     if (
       amount === undefined ||
       !title ||
@@ -38,17 +38,15 @@ exports.createCheckoutSession = async (req, res) => {
       return res.status(400).json({ error: "Campos obrigatórios faltando." });
     }
 
-    // ID do usuário logado (pego do token)
     const userId = req.user._id.toString();
 
-    // Cria a sessão de checkout no Stripe
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
           price_data: {
             currency: "BRL",
             product_data: { name: "Serviço de Limpeza" },
-            unit_amount: Math.round(amount * 100), // Valor em centavos
+            unit_amount: Math.round(amount * 100),
           },
           quantity: 1,
         },
@@ -56,8 +54,6 @@ exports.createCheckoutSession = async (req, res) => {
       mode: "payment",
       success_url: successUrl,
       cancel_url: cancelUrl,
-
-      // Envie tudo que precisar no webhook via metadata
       metadata: {
         clientId: userId,
         title,
@@ -74,7 +70,6 @@ exports.createCheckoutSession = async (req, res) => {
       },
     });
 
-    // Retorna a URL da sessão de checkout
     console.log("Sessão de Checkout criada com sucesso:", session.id);
     return res.json({ url: session.url });
   } catch (err) {
@@ -83,7 +78,7 @@ exports.createCheckoutSession = async (req, res) => {
   }
 };
 
-// 2) Cria PaymentIntent (se ainda quiser usar em outro fluxo)
+// Criação de Payment Intent
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { amount } = req.body;
@@ -103,8 +98,7 @@ exports.createPaymentIntent = async (req, res) => {
   }
 };
 
-// Função para lidar com o webhook do Stripe
-// src/controllers/payments.controller.js
+// Webhook do Stripe
 exports.handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -117,9 +111,6 @@ exports.handleStripeWebhook = async (req, res) => {
     console.error("Erro ao validar webhook:", err.message);
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
-
-  // Logando os dados do evento
-  console.log("Evento recebido do Stripe:", event);
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
@@ -135,19 +126,6 @@ exports.handleStripeWebhook = async (req, res) => {
       measurementUnit,
       location,
     } = session.metadata || {};
-
-    console.log("Dados recebidos no webhook para criar o Job:", {
-      clientId,
-      title,
-      description,
-      workerQuantity,
-      price,
-      sizeGarbage,
-      typeOfGarbage,
-      cleaningType,
-      measurementUnit,
-      location,
-    });
 
     if (
       !clientId ||
@@ -193,14 +171,13 @@ exports.handleStripeWebhook = async (req, res) => {
       console.log("Job criado com sucesso:", newJob._id);
     } catch (err) {
       console.error("Erro ao salvar Job no MongoDB:", err.message);
-      return res.status(500).send("Erro ao salvar Job.");
     }
   }
 
   return res.status(200).end();
 };
 
-// 4) sendPaymentToWorker (se for usar Stripe Connect depois)
+// Envio de pagamento para o trabalhador
 exports.sendPaymentToWorker = async (req, res) => {
   try {
     const { jobId } = req.body;
@@ -213,16 +190,8 @@ exports.sendPaymentToWorker = async (req, res) => {
       return res.status(400).json({ message: "Job ainda não está concluído" });
     }
 
-    // Se fosse Connect:
-    // const worker = await User.findById(job.workerId);
-    // const workerStripeAccount = worker.stripeConnectId;
     const amountToSend = Math.round(job.price * 0.65 * 100);
 
-    // Exemplo sem Connect:
-    // job.paymentReleased = true;
-    // await job.save();
-
-    // Atualizar o Job para indicar que o pagamento foi iniciado
     job.paymentReleased = true;
     await job.save();
 
