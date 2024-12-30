@@ -104,6 +104,7 @@ exports.createPaymentIntent = async (req, res) => {
 };
 
 // Função para lidar com o webhook do Stripe
+// src/controllers/payments.controller.js
 exports.handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -111,13 +112,15 @@ exports.handleStripeWebhook = async (req, res) => {
   let event;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log("Webhook recebido e validado:", event.type);
+    console.log("Webhook recebido e validado com sucesso:", event.type);
   } catch (err) {
-    console.error("Erro ao validar webhook:", err);
+    console.error("Erro ao validar webhook:", err.message);
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  // Somente aqui verificamos event.type
+  // Logando os dados do evento
+  console.log("Evento recebido do Stripe:", event);
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     const {
@@ -133,7 +136,7 @@ exports.handleStripeWebhook = async (req, res) => {
       location,
     } = session.metadata || {};
 
-    console.log("Dados da sessão para criação do Job:", {
+    console.log("Dados recebidos no webhook para criar o Job:", {
       clientId,
       title,
       description,
@@ -146,7 +149,6 @@ exports.handleStripeWebhook = async (req, res) => {
       location,
     });
 
-    // Verifique se todos os campos necessários estão presentes
     if (
       !clientId ||
       !title ||
@@ -163,17 +165,16 @@ exports.handleStripeWebhook = async (req, res) => {
       return res.status(400).send("Metadados incompletos.");
     }
 
-    // Parse do objeto de localização
-    let locationData = {};
+    let locationData;
     try {
       locationData = JSON.parse(location);
+      console.log("Localização parseada:", locationData);
     } catch (err) {
-      console.error("Erro ao parsear location do metadata:", err);
+      console.error("Erro ao parsear localização:", err.message);
       return res.status(400).send("Erro ao parsear localização.");
     }
 
     try {
-      // Cria o Job manualmente no Mongo
       const newJob = new Job({
         title,
         description,
@@ -189,10 +190,10 @@ exports.handleStripeWebhook = async (req, res) => {
       });
 
       await newJob.save();
-      console.log("Job criado via webhook:", newJob._id);
-    } catch (dbErr) {
-      console.error("Erro ao criar Job no webhook:", dbErr);
-      // Dependendo da necessidade, você pode responder com erro ou continuar
+      console.log("Job criado com sucesso:", newJob._id);
+    } catch (err) {
+      console.error("Erro ao salvar Job no MongoDB:", err.message);
+      return res.status(500).send("Erro ao salvar Job.");
     }
   }
 

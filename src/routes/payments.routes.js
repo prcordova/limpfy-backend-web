@@ -10,20 +10,16 @@ const {
 const { authenticate } = require("../middlewares/auth.middleware");
 const { authorizeRoles } = require("../middlewares/roles.middleware");
 
-console.log("Payments routes loaded"); // Log para verificar se as rotas estão sendo carregadas
-
-// Rotas normais de pagamento (usar JSON normal)
-router.post("/create-checkout-session", authenticate, createCheckoutSession);
-router.post("/create-payment-intent", authenticate, createPaymentIntent);
-
-// Webhook do Stripe (usar express.raw APENAS AQUI)
+// Middleware exclusivo para webhook Stripe
 router.post(
   "/webhook",
-  express.raw({ type: "application/json" }),
+  express.raw({ type: "application/json" }), // Necessário para assinatura do Stripe
   handleStripeWebhook
 );
 
-// Payout (apenas admin)
+// Outras rotas
+router.post("/create-checkout-session", authenticate, createCheckoutSession);
+router.post("/create-payment-intent", authenticate, createPaymentIntent);
 router.post(
   "/pay-worker",
   authenticate,
