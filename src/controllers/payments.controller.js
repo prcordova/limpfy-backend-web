@@ -3,6 +3,9 @@ require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Job = require("../models/job.model");
 
+const successUrl = process.env.STRIPE_SUCCESS_URL;
+const cancelUrl = process.env.STRIPE_CANCEL_URL;
+
 exports.createCheckoutSession = async (req, res) => {
   try {
     const {
@@ -51,8 +54,8 @@ exports.createCheckoutSession = async (req, res) => {
         },
       ],
       mode: "payment",
-      success_url: "http://localhost:3000/orders",
-      cancel_url: "http://localhost:3000",
+      success_url: successUrl,
+      cancel_url: cancelUrl,
 
       // Envie tudo que precisar no webhook via metadata
       metadata: {
