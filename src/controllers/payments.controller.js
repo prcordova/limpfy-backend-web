@@ -1,4 +1,3 @@
-// src/controllers/payments.controller.js
 require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const Job = require("../models/job.model");
@@ -92,14 +91,8 @@ exports.handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  console.log("Evento recebido do Stripe:", event);
-
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    console.log(
-      "Dados recebidos no evento checkout.session.completed:",
-      session
-    );
 
     const {
       clientId,
@@ -113,6 +106,19 @@ exports.handleStripeWebhook = async (req, res) => {
       measurementUnit,
       location,
     } = session.metadata || {};
+
+    console.log("Metadados extraídos:", {
+      clientId,
+      title,
+      description,
+      workerQuantity,
+      price,
+      sizeGarbage,
+      typeOfGarbage,
+      cleaningType,
+      measurementUnit,
+      location,
+    });
 
     if (
       !clientId ||
@@ -133,6 +139,7 @@ exports.handleStripeWebhook = async (req, res) => {
     let locationData;
     try {
       locationData = JSON.parse(location);
+      console.log("Localização parseada com sucesso:", locationData);
     } catch (err) {
       console.error("Erro ao parsear localização:", err.message);
       return res.status(400).send("Erro ao parsear localização.");
@@ -153,16 +160,12 @@ exports.handleStripeWebhook = async (req, res) => {
         status: "paid",
       });
 
-      await newJob.save();
-      console.log("Job criado com sucesso no MongoDB:", newJob);
+      const savedJob = await newJob.save();
+      console.log("Job criado com sucesso no MongoDB:", savedJob);
     } catch (err) {
       console.error("Erro ao salvar Job no MongoDB:", err.message);
+      return res.status(500).send("Erro ao salvar Job.");
     }
-  } else if (event.type === "payment_intent.succeeded") {
-    const paymentIntent = event.data.object;
-    console.log("Pagamento recebido com sucesso:", paymentIntent.id);
-
-    // Adicione qualquer lógica adicional que você queira tratar aqui
   }
 
   return res.status(200).end();
