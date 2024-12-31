@@ -162,9 +162,11 @@ exports.handleStripeWebhook = async (req, res) => {
 
       const savedJob = await newJob.save();
       console.log("Job criado com sucesso no MongoDB:", savedJob);
+
+      return res.status(200).send("Job criado com sucesso.");
     } catch (err) {
       console.error("Erro ao salvar Job no MongoDB:", err.message);
-      return res.status(500).send("Erro ao salvar Job.");
+      return res.status(500).send("Erro ao salvar Job no MongoDB.");
     }
   }
 
