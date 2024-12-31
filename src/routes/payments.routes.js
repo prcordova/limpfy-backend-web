@@ -2,7 +2,6 @@
 const express = require("express");
 const router = express.Router();
 const {
-  createPaymentIntent,
   handleStripeWebhook,
   sendPaymentToWorker,
   createCheckoutSession,
@@ -19,7 +18,6 @@ router.post(
 
 // Outras rotas
 router.post("/create-checkout-session", authenticate, createCheckoutSession);
-router.post("/create-payment-intent", authenticate, createPaymentIntent);
 router.post(
   "/pay-worker",
   authenticate,

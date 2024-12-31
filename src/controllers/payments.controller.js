@@ -78,26 +78,6 @@ exports.createCheckoutSession = async (req, res) => {
   }
 };
 
-// Criação de Payment Intent
-exports.createPaymentIntent = async (req, res) => {
-  try {
-    const { amount } = req.body;
-    if (amount === undefined) {
-      return res.status(400).json({ error: "Falta 'amount' no body." });
-    }
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency: "BRL",
-    });
-
-    res.json({ clientSecret: paymentIntent.client_secret });
-  } catch (err) {
-    console.error("Erro ao criar PaymentIntent:", err);
-    return res.status(500).json({ error: "Falha ao criar pagamento" });
-  }
-};
-
 // Webhook do Stripe
 exports.handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
@@ -112,12 +92,10 @@ exports.handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
-  // Log do evento recebido
   console.log("Evento recebido do Stripe:", event);
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-
     console.log(
       "Dados recebidos no evento checkout.session.completed:",
       session
@@ -135,19 +113,6 @@ exports.handleStripeWebhook = async (req, res) => {
       measurementUnit,
       location,
     } = session.metadata || {};
-
-    console.log("Metadados extraídos:", {
-      clientId,
-      title,
-      description,
-      workerQuantity,
-      price,
-      sizeGarbage,
-      typeOfGarbage,
-      cleaningType,
-      measurementUnit,
-      location,
-    });
 
     if (
       !clientId ||
@@ -168,7 +133,6 @@ exports.handleStripeWebhook = async (req, res) => {
     let locationData;
     try {
       locationData = JSON.parse(location);
-      console.log("Localização parseada com sucesso:", locationData);
     } catch (err) {
       console.error("Erro ao parsear localização:", err.message);
       return res.status(400).send("Erro ao parsear localização.");
@@ -194,6 +158,11 @@ exports.handleStripeWebhook = async (req, res) => {
     } catch (err) {
       console.error("Erro ao salvar Job no MongoDB:", err.message);
     }
+  } else if (event.type === "payment_intent.succeeded") {
+    const paymentIntent = event.data.object;
+    console.log("Pagamento recebido com sucesso:", paymentIntent.id);
+
+    // Adicione qualquer lógica adicional que você queira tratar aqui
   }
 
   return res.status(200).end();
