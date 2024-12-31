@@ -112,8 +112,17 @@ exports.handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook error: ${err.message}`);
   }
 
+  // Log do evento recebido
+  console.log("Evento recebido do Stripe:", event);
+
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+
+    console.log(
+      "Dados recebidos no evento checkout.session.completed:",
+      session
+    );
+
     const {
       clientId,
       title,
@@ -126,6 +135,19 @@ exports.handleStripeWebhook = async (req, res) => {
       measurementUnit,
       location,
     } = session.metadata || {};
+
+    console.log("Metadados extraídos:", {
+      clientId,
+      title,
+      description,
+      workerQuantity,
+      price,
+      sizeGarbage,
+      typeOfGarbage,
+      cleaningType,
+      measurementUnit,
+      location,
+    });
 
     if (
       !clientId ||
@@ -146,7 +168,7 @@ exports.handleStripeWebhook = async (req, res) => {
     let locationData;
     try {
       locationData = JSON.parse(location);
-      console.log("Localização parseada:", locationData);
+      console.log("Localização parseada com sucesso:", locationData);
     } catch (err) {
       console.error("Erro ao parsear localização:", err.message);
       return res.status(400).send("Erro ao parsear localização.");
@@ -168,7 +190,7 @@ exports.handleStripeWebhook = async (req, res) => {
       });
 
       await newJob.save();
-      console.log("Job criado com sucesso:", newJob._id);
+      console.log("Job criado com sucesso no MongoDB:", newJob);
     } catch (err) {
       console.error("Erro ao salvar Job no MongoDB:", err.message);
     }
