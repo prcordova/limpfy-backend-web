@@ -157,7 +157,7 @@ exports.handleStripeWebhook = async (req, res) => {
         measurementUnit,
         location: locationData,
         clientId: clientId,
-        status: "paid",
+        status: "pending",
       });
 
       const savedJob = await newJob.save();
