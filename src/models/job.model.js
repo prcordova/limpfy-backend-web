@@ -64,6 +64,7 @@ const JobSchema = new mongoose.Schema(
 );
 
 // Índices para otimizar consultas
+JobSchema.index({ cleanedPhoto: 1 });
 JobSchema.index({ clientId: 1 });
 JobSchema.index({ workerId: 1 });
 

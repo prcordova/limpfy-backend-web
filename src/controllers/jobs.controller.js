@@ -364,9 +364,10 @@ exports.completeJob = async (req, res) => {
       //   public/uploads/users/<workerId>/jobs/<jobId>/cleans
       // então a rota de acesso é algo como:
       //   /uploads/users/<workerId>/jobs/<jobId>/cleans/<arquivo>
-      const workerId = req.user._id.toString();
+      // const workerId = req.user._id.toString();
       const jobId = req.params.id;
-      cleanedPhoto = `/uploads/users/${workerId}/jobs/${jobId}/cleans/${req.file.filename}`;
+      // cleanedPhoto = `/uploads/users/${workerId}/jobs/${jobId}/cleans/${req.file.filename}`;
+      cleanedPhoto = `/uploads/jobs/${jobId}/cleans/${req.file.filename}`;
     }
 
     job.status = "completed";

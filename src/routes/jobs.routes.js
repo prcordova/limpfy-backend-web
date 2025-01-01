@@ -29,18 +29,11 @@ const multer = require("multer");
 //
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // req.params.id = jobId
-    // req.user._id = ID do trabalhador logado
-    const workerId = req.user._id.toString();
     const jobId = req.params.id;
-
-    // Monta o caminho final
     const cleansDir = path.join(
       process.cwd(),
       "public",
       "uploads",
-      "users",
-      workerId,
       "jobs",
       jobId,
       "cleans"
