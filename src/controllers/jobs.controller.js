@@ -370,7 +370,7 @@ exports.completeJob = async (req, res) => {
       cleanedPhoto = `/uploads/jobs/${jobId}/cleans/${req.file.filename}`;
     }
 
-    job.status = "completed";
+    job.status = "waiting-for-client";
     job.cleanedPhoto = cleanedPhoto;
     await job.save();
 

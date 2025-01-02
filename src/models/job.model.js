@@ -13,6 +13,7 @@ const JobSchema = new mongoose.Schema(
         "cancelled-by-client",
         "dispute",
         "waiting-for-rating",
+        "waiting-for-client",
       ],
       default: "pending",
     },
