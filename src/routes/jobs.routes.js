@@ -71,7 +71,8 @@ router.post("/:id/reactivate", authenticate, reactivateJob);
 router.post(
   "/:id/complete",
   authenticate,
-  upload.single("cleanedPhoto"),
+  upload.array("cleanedPhotos", 3),
+
   completeJob
 );
 

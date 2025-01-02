@@ -130,6 +130,15 @@ exports.getJobById = async (req, res) => {
     if (!job) {
       return res.status(404).json({ message: "Trabalho não encontrado" });
     }
+
+    // Verifica se o usuário é o clientId ou workerId associado
+    if (
+      job.clientId.toString() !== req.user._id.toString() &&
+      job.workerId.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Acesso negado" });
+    }
+
     res.json(job);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -356,22 +365,20 @@ exports.completeJob = async (req, res) => {
         .json({ message: "Trabalho já finalizado ou cancelado" });
     }
 
-    let cleanedPhoto = null;
-    if (req.file) {
-      // Como o Multer (diskStorage) já salvou direto no destino,
-      // só precisamos guardar o path relativo para exibir no front:
-      // Se você definiu a pasta em:
-      //   public/uploads/users/<workerId>/jobs/<jobId>/cleans
-      // então a rota de acesso é algo como:
-      //   /uploads/users/<workerId>/jobs/<jobId>/cleans/<arquivo>
-      // const workerId = req.user._id.toString();
-      const jobId = req.params.id;
-      // cleanedPhoto = `/uploads/users/${workerId}/jobs/${jobId}/cleans/${req.file.filename}`;
-      cleanedPhoto = `/uploads/jobs/${jobId}/cleans/${req.file.filename}`;
+    if (req.files) {
+      const uploadedPhotos = req.files.map(
+        (file) => `/uploads/jobs/${req.params.id}/cleans/${file.filename}`
+      );
+      job.cleanedPhotos = job.cleanedPhotos || [];
+      if (job.cleanedPhotos.length + uploadedPhotos.length > 3) {
+        return res.status(400).json({
+          message: "Você pode enviar no máximo 3 fotos por trabalho.",
+        });
+      }
+      job.cleanedPhotos.push(...uploadedPhotos);
     }
 
     job.status = "completed";
-    job.cleanedPhoto = cleanedPhoto;
     await job.save();
 
     return res.json(job);

@@ -45,7 +45,8 @@ const JobSchema = new mongoose.Schema(
     workerName: { type: String },
 
     // Novos campos para fluxo de conclusão
-    cleanedPhoto: { type: String }, // Caminho/URL da foto da área limpa após conclusão
+    cleanedPhotos: [{ type: String }], // Caminhos das fotos limpas
+
     completedAt: { type: Date }, // Data/hora em que o trabalho foi concluído
     disputeUntil: { type: Date }, // Data/hora até quando o cliente pode contestar
 
