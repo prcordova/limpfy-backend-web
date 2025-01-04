@@ -48,7 +48,7 @@ const JobSchema = new mongoose.Schema(
     // Novos campos para fluxo de conclusão
     cleanedPhoto: { type: String }, // Caminho/URL da foto da área limpa após conclusão
     completedAt: { type: Date }, // Data/hora em que o trabalho foi concluído
-    disputeUntil: { type: Date }, // Data/hora até quando o cliente pode contestar
+    disputeUntil: { type: Date }, // Data/hora limite para resolução de disputa
 
     disputeStatus: { type: String }, // Adicionado para gerenciamento de disputas
     disputeReason: { type: String },

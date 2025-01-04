@@ -209,7 +209,7 @@ exports.completeOrder = async (req, res) => {
     }
 
     // Verifica se o status do job é waiting-for-rating
-    if (job.status !== "waiting-for-rating") {
+    if (job.status !== "waiting-for-client") {
       return res.status(400).json({
         message:
           "A conclusão só pode ser aceita se o trabalho estiver aguardando avaliação.",
@@ -217,7 +217,7 @@ exports.completeOrder = async (req, res) => {
     }
 
     // Marca o trabalho como concluído
-    job.status = "completed";
+    job.status = "waiting-for-rating";
     job.completedAt = new Date();
     // Caso haja lógica de pagamento, liberar pagamento aqui:
     // job.paymentReleased = true;
@@ -356,25 +356,43 @@ exports.completeJob = async (req, res) => {
         .json({ message: "Trabalho já finalizado ou cancelado" });
     }
 
+    // Processa a foto enviada, se existir
     let cleanedPhoto = null;
     if (req.file) {
-      // Como o Multer (diskStorage) já salvou direto no destino,
-      // só precisamos guardar o path relativo para exibir no front:
-      // Se você definiu a pasta em:
-      //   public/uploads/users/<workerId>/jobs/<jobId>/cleans
-      // então a rota de acesso é algo como:
-      //   /uploads/users/<workerId>/jobs/<jobId>/cleans/<arquivo>
-      // const workerId = req.user._id.toString();
       const jobId = req.params.id;
-      // cleanedPhoto = `/uploads/users/${workerId}/jobs/${jobId}/cleans/${req.file.filename}`;
       cleanedPhoto = `/uploads/jobs/${jobId}/cleans/${req.file.filename}`;
     }
 
+    // Atualiza o status para `waiting-for-client` e define o tempo para contestação
+
     job.status = "waiting-for-client";
+    job.completedAt = new Date();
     job.cleanedPhoto = cleanedPhoto;
+    job.disputeUntil = new Date(Date.now() + 30 * 60000); // 60 minutos para contestação;
     await job.save();
 
-    return res.json(job);
+    // Notifica o cliente sobre a conclusão do trabalho via socket ou notificações
+    const clientIdStr = job.clientId.toString();
+    const { getConnectedUsers, getIO } = require("../socket");
+    const users = getConnectedUsers();
+    const socketId = users[clientIdStr];
+
+    if (socketId) {
+      const io = getIO();
+      io.to(socketId).emit("jobCompleted", {
+        message: `O trabalhador concluiu o trabalho "${job.title}". Avalie e aprove ou abra uma reclamação.`,
+        jobId: job._id,
+        disputeUntil: disputeUntil.toISOString(),
+      });
+    }
+
+    return res.json({
+      message: "Trabalho concluído. Aguardando aprovação do cliente.",
+      job: {
+        ...job.toObject(),
+        disputeUntilMinutes: Math.ceil((disputeUntil - Date.now()) / 1000 / 60), // Minutos restantes para contestação
+      },
+    });
   } catch (err) {
     console.error("Error completing job:", err);
     return res.status(500).json({ message: err.message });
@@ -393,9 +411,9 @@ exports.openDispute = async (req, res) => {
     }
 
     // Se o job não estiver completed ou in-progress, não faz sentido abrir disputa
-    if (job.status !== "waiting-for-rating") {
+    if (job.status !== "waiting-for-client") {
       return res.status(400).json({
-        message: "Somente trabalhos concluídos podem entrar em disputa",
+        message: "Apenas trabalhos concluídos podem ser disputados",
       });
     }
 
