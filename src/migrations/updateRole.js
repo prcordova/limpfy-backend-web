@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const User = require("./models/user.model"); // Certifique-se de usar o caminho correto para o seu modelo
+const User = require("../models/user.model"); // Certifique-se de usar o caminho correto para o seu modelo
 require("dotenv").config();
 
 (async () => {

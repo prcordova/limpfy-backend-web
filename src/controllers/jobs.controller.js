@@ -6,6 +6,12 @@ const { getIO, getConnectedUsers } = require("../socket");
 const path = require("path");
 const fs = require("fs");
 
+const calculateAdjustedPrice = (job, handsOnActive) => {
+  const platformFee = 0.3; // Taxa de 30% para a plataforma
+  const handsOnDiscount = handsOnActive ? 0.05 : 0; // 5% de desconto adicional se "Mão Amiga" estiver ativo
+  return (job.price * (1 - platformFee) * (1 - handsOnDiscount)).toFixed(2);
+};
+
 exports.createJob = async (req, res) => {
   try {
     const job = new Job({ ...req.body, clientId: req.user._id });
@@ -268,6 +274,70 @@ exports.completeOrder = async (req, res) => {
 
 // Worker endpoints
 
+//accept job with socketIO
+// exports.acceptJob = async (req, res) => {
+//   try {
+//     const job = await Job.findById(req.params.id);
+//     if (!job) {
+//       return res.status(404).json({ message: "Trabalho não encontrado" });
+//     }
+
+//     if (job.workerId) {
+//       return res
+//         .status(400)
+//         .json({ message: "Trabalho já aceito por outro trabalhador" });
+//     }
+
+//     job.workerId = req.user._id;
+//     job.status = "in-progress";
+
+//     if (!job.clientId) {
+//       return res
+//         .status(400)
+//         .json({ message: "Client ID não encontrado no job" });
+//     }
+
+//     // Buscar o cliente no banco
+//     const client = await User.findById(job.clientId);
+//     if (!client) {
+//       return res.status(404).json({ message: "Cliente não encontrado" });
+//     }
+
+//     const clientIdStr = job.clientId.toString();
+//     const users = getConnectedUsers();
+//     const socketId = users[clientIdStr];
+
+//     // Enviar notificação via Socket.IO se o cliente estiver conectado
+//     if (socketId) {
+//       const io = getIO();
+//       io.to(socketId).emit("jobAccepted", {
+//         message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
+//       });
+//       console.log(
+//         `📡 Notificação enviada via socket para o cliente com ID: ${clientIdStr}`
+//       );
+//     } else {
+//       console.warn(`⚠️ Cliente ${clientIdStr} não está conectado`);
+//     }
+
+//     // Adicionar notificação no documento do cliente
+//     client.notifications.push({
+//       message: `Seu trabalho "${job.title}" foi iniciado.`,
+//       jobId: job._id,
+//       workerId: job.workerId.toString(),
+//       type: "job", // Definindo o tipo de notificação
+//     });
+
+//     await client.save(); // Salvar as alterações no cliente
+//     await job.save(); // Salvar as alterações no job
+
+//     res.json(job);
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: err.message });
+//   }
+// };
+
 exports.acceptJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -284,47 +354,32 @@ exports.acceptJob = async (req, res) => {
     job.workerId = req.user._id;
     job.status = "in-progress";
 
-    if (!job.clientId) {
-      return res
-        .status(400)
-        .json({ message: "Client ID não encontrado no job" });
+    const worker = await User.findById(req.user._id);
+    if (!worker) {
+      return res.status(404).json({ message: "Trabalhador não encontrado." });
     }
 
-    // Buscar o cliente no banco
+    const adjustedPrice = calculateAdjustedPrice(
+      job,
+      worker.workerDetails.handsOnActive
+    );
+
+    // Notificar cliente e salvar alterações
     const client = await User.findById(job.clientId);
-    if (!client) {
-      return res.status(404).json({ message: "Cliente não encontrado" });
+    if (client) {
+      const { getConnectedUsers, getIO } = require("../socket");
+      const users = getConnectedUsers();
+      const socketId = users[client._id.toString()];
+      if (socketId) {
+        const io = getIO();
+        io.to(socketId).emit("jobAccepted", {
+          message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
+        });
+      }
     }
 
-    const clientIdStr = job.clientId.toString();
-    const users = getConnectedUsers();
-    const socketId = users[clientIdStr];
-
-    // Enviar notificação via Socket.IO se o cliente estiver conectado
-    if (socketId) {
-      const io = getIO();
-      io.to(socketId).emit("jobAccepted", {
-        message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
-      });
-      console.log(
-        `📡 Notificação enviada via socket para o cliente com ID: ${clientIdStr}`
-      );
-    } else {
-      console.warn(`⚠️ Cliente ${clientIdStr} não está conectado`);
-    }
-
-    // Adicionar notificação no documento do cliente
-    client.notifications.push({
-      message: `Seu trabalho "${job.title}" foi iniciado.`,
-      jobId: job._id,
-      workerId: job.workerId.toString(),
-      type: "job", // Definindo o tipo de notificação
-    });
-
-    await client.save(); // Salvar as alterações no cliente
-    await job.save(); // Salvar as alterações no job
-
-    res.json(job);
+    await job.save();
+    res.json({ ...job.toObject(), adjustedPrice });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -353,12 +408,18 @@ exports.cancelJob = async (req, res) => {
 //Busca trabalhos do trabalhador
 exports.getMyJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({ workerId: req.user._id }).populate(
-      "clientId",
-      "fullName"
-    );
+    const jobs = await Job.find({ workerId: req.user._id });
+    const worker = await User.findById(req.user._id);
 
-    res.json(jobs);
+    const jobsWithAdjustedPrice = jobs.map((job) => ({
+      ...job.toObject(),
+      adjustedPrice: calculateAdjustedPrice(
+        job,
+        worker.workerDetails.handsOnActive
+      ),
+    }));
+
+    res.json(jobsWithAdjustedPrice);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
