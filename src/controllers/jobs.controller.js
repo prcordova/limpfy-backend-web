@@ -211,7 +211,7 @@ exports.completeOrder = async (req, res) => {
       });
     }
 
-    // Verifica se o status do job é waiting-for-rating
+    // Verifica se o status do job é waiting-for-client
     if (job.status !== "waiting-for-client") {
       return res.status(400).json({
         message:
@@ -219,20 +219,56 @@ exports.completeOrder = async (req, res) => {
       });
     }
 
+    // Busca o trabalhador
+    const worker = await User.findById(job.workerId);
+    if (!worker) {
+      return res
+        .status(404)
+        .json({ message: "Trabalhador associado não encontrado." });
+    }
+
+    // Cálculo do saldo
+    const jobPrice = job.price; // Certifique-se de que o preço está armazenado no job
+    const platformFee = 0.3; // Taxa de 30% para a plataforma
+    let workerEarnings = jobPrice * (1 - platformFee);
+
+    if (worker.workerDetails.handsOnActive) {
+      const handsOnDiscount = 0.05; // Desconto adicional de 5%
+      workerEarnings *= 1 - handsOnDiscount;
+    }
+
+    // Atualiza o saldo do trabalhador
+    worker.workerDetails.balance += workerEarnings;
+
+    // Salva o trabalhador atualizado
+    await worker.save();
+
     // Marca o trabalho como concluído
     job.status = "waiting-for-rating";
     job.completedAt = new Date();
-    // Caso haja lógica de pagamento, liberar pagamento aqui:
-    // job.paymentReleased = true;
 
     await job.save();
 
     // Opcional: enviar notificação via socket ou notificação para o trabalhador
-    // ...
+    const { getConnectedUsers, getIO } = require("../socket");
+    const users = getConnectedUsers();
+    const socketId = users[worker._id.toString()];
 
-    res.json(job);
+    if (socketId) {
+      const io = getIO();
+      io.to(socketId).emit("jobCompleted", {
+        message: `O cliente confirmou a conclusão do trabalho "${job.title}".`,
+        jobId: job._id,
+      });
+    }
+
+    res.json({
+      message: "Trabalho concluído com sucesso.",
+      job,
+      updatedBalance: worker.workerDetails.balance,
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao completar o pedido:", err);
     res.status(500).json({ message: err.message });
   }
 };
