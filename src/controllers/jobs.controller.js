@@ -53,40 +53,7 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
-// //busca trabalhos do cliente
-// exports.getClientJobs = async (req, res) => {
-//   try {
-//     // Popula workerId com fullName, avatars, ratings e média (averageRating)
-//     // Você precisará criar um virtual ou pipeline de agregação para calcular averageRating,
-//     // ou pré-calcular no momento da requisição.
-//     // Por simplicidade, supondo que averageRating já exista ou seja calculado no momento da consulta:
-//     const jobs = await Job.find({ clientId: req.user._id }).populate({
-//       path: "workerId",
-//       select: "fullName avatars ratings",
-//     });
-
-//     // Calcular averageRating do trabalhador aqui, se necessário:
-//     // Ou caso já esteja armazenado no banco, só retornar.
-//     // Também pegar últimos 3 comentários já filtrados no front.
-
-//     // Aqui você pode iterar sobre cada job e calcular averageRating se não existir:
-//     for (let j of jobs) {
-//       if (j.workerId && j.workerId.ratings && j.workerId.ratings.length > 0) {
-//         const sum = j.workerId.ratings.reduce((acc, r) => acc + r.rating, 0);
-//         const avg = sum / j.workerId.ratings.length;
-//         j.workerId.averageRating = avg;
-//       } else if (j.workerId) {
-//         j.workerId.averageRating = 0;
-//       }
-//     }
-
-//     res.status(200).json(jobs);
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
-
-exports.getClientJobs = async (req, res) => {
+exports.getClientOrders = async (req, res) => {
   try {
     const jobs = await Job.find({ clientId: req.user._id }).populate(
       "workerId",
@@ -116,13 +83,39 @@ exports.getClientJobs = async (req, res) => {
 //busca novos trabalhos na aba todos para trabalhador
 exports.getJobs = async (req, res) => {
   try {
+    // Buscar todos os trabalhos disponíveis (não em progresso ou cancelados)
     const jobs = await Job.find({
       status: { $nin: ["in-progress", "cancelled-by-client"] },
-    }).sort({ status: "desc", createdAt: -1 }); // Prioriza "handsOn" e ordena por data
+    }).sort({ status: "desc", createdAt: -1 });
 
-    res.json(jobs);
+    // Obter o trabalhador logado
+    const worker = await User.findById(req.user._id);
+    if (!worker) {
+      return res.status(404).json({ message: "Trabalhador não encontrado." });
+    }
+
+    // Verificar se o trabalhador possui "Mão Amiga" ativo
+    const handsOnActive = worker.workerDetails.handsOnActive;
+
+    // Mapear os trabalhos para incluir o preço ajustado
+    const jobsWithAdjustedPrice = jobs.map((job) => {
+      const platformFee = 0.3; // Taxa de 30% para a plataforma
+      const handsOnDiscount = handsOnActive ? 0.05 : 0; // 5% de desconto adicional se "Mão Amiga" estiver ativo
+
+      // Calcular o preço ajustado
+      const adjustedPrice =
+        job.price * (1 - platformFee) * (1 - handsOnDiscount);
+
+      return {
+        ...job.toObject(),
+        adjustedPrice: adjustedPrice.toFixed(2), // Formatar para duas casas decimais
+      };
+    });
+
+    res.json(jobsWithAdjustedPrice);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Erro ao buscar trabalhos:", err);
+    res.status(500).json({ message: "Erro ao buscar trabalhos." });
   }
 };
 

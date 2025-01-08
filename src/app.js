@@ -10,6 +10,8 @@ const problemRoutes = require("./routes/problems.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
 const paymentsRoutes = require("./routes/payments.routes");
 const handsonRoutes = require("./routes/handsOn.routes");
+const adminRoutes = require("./routes/admin.routes");
+
 const { globalErrorHandler } = require("./utils/error.handler");
 
 const app = express();
@@ -36,6 +38,8 @@ app.use("/payments", paymentsRoutes);
 app.use("/problems", require("./routes/problems.routes"), problemRoutes);
 app.use("/notifications", notificationsRoutes);
 app.use("/handson", require("./routes/handsOn.routes")), handsonRoutes;
+
+app.use("/admin", adminRoutes);
 
 // Manipulador de erros global
 app.use(globalErrorHandler);

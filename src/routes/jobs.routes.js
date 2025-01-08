@@ -12,7 +12,7 @@ const {
   reactivateJob,
   getJobsByUserId,
   getMyJobs,
-  getClientJobs,
+  getClientOrders,
   completeJob,
   openDispute,
   resolveDispute,
@@ -57,7 +57,7 @@ const router = express.Router();
 router.post("/create", authenticate, createJob);
 router.get("/", authenticate, getJobs);
 router.get("/my-jobs", authenticate, getMyJobs);
-router.get("/client-jobs", authenticate, getClientJobs);
+router.get("/client-jobs", authenticate, getClientOrders);
 
 // ----------------- Rotas para trabalhador -----------------
 router.get("/:id", authenticate, getJobById);
