@@ -6,8 +6,10 @@ const authRoutes = require("./routes/auth.routes");
 const jobsRoutes = require("./routes/jobs.routes");
 const usersRoutes = require("./routes/users.routes");
 const ocrRoutes = require("./routes/ocr.routes");
+const problemRoutes = require("./routes/problems.routes");
 const notificationsRoutes = require("./routes/notifications.routes");
 const paymentsRoutes = require("./routes/payments.routes");
+const handsonRoutes = require("./routes/handsOn.routes");
 const { globalErrorHandler } = require("./utils/error.handler");
 
 const app = express();
@@ -31,7 +33,9 @@ app.use("/jobs", jobsRoutes);
 app.use("/users", usersRoutes);
 app.use("/ocr", ocrRoutes);
 app.use("/payments", paymentsRoutes);
+app.use("/problems", require("./routes/problems.routes"), problemRoutes);
 app.use("/notifications", notificationsRoutes);
+app.use("/handson", require("./routes/handsOn.routes")), handsonRoutes;
 
 // Manipulador de erros global
 app.use(globalErrorHandler);

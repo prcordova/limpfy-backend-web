@@ -19,6 +19,7 @@ const {
   sendDisputeMessage,
   rateJob,
   completeOrder,
+  reportCarProblem,
 } = require("../controllers/jobs.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 const multer = require("multer");
@@ -74,6 +75,8 @@ router.post(
   upload.single("cleanedPhoto"),
   completeJob
 );
+//Rotas de problemas com o trabalho
+router.post("/:id/call-for-help", authenticate, reportCarProblem);
 
 // ----------------- Rotas de disputa -----------------
 router.post("/:id/open-dispute", authenticate, openDispute);

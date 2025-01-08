@@ -67,6 +67,7 @@ exports.getUserById = async (req, res) => {
       status: user.status,
       avatar: finalAvatar,
       averageRating: averageRating,
+      balance: user.workerDetails?.balance || 0, // Retorna o saldo, padrão 0 se não existir
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

@@ -49,7 +49,6 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
-    // Avaliações e comentários
     ratings: [
       {
         jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
@@ -58,8 +57,27 @@ const UserSchema = new mongoose.Schema(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+
+    workerDetails: {
+      completedJobs: { type: Number, default: 0 },
+      createdAt: { type: Date, default: Date.now },
+      handsOnLimit: { type: Number, default: 1 },
+      handsOnUsed: { type: Number, default: 0 },
+      lastReset: { type: Date, default: Date.now },
+      handsOnActive: { type: Boolean, default: false }, // Flag para ativação do recurso
+      balance: { type: Number, default: 0 }, // Saldo do trabalhador
+      lastHandsOnActivation: { type: Date, default: null }, // Data da última ativação
+      nextHandsOnThreshold: { type: Number, default: 10 }, // Trabalhos necessários para próxima ativação
+    },
+
+    handsOn: {
+      isActive: { type: Boolean, default: false },
+      subscriptionId: { type: String, default: null },
+      activatedAt: { type: Date, default: null },
+      nextBillingDate: { type: Date, default: null },
+    },
   },
-  { timestamps: true }
+  { timestamps: true } // Inclui createdAt e updatedAt automaticamente
 );
 
 module.exports = mongoose.model("User", UserSchema);
