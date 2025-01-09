@@ -61,13 +61,17 @@ const UserSchema = new mongoose.Schema(
     workerDetails: {
       completedJobs: { type: Number, default: 0 },
       createdAt: { type: Date, default: Date.now },
-      handsOnLimit: { type: Number, default: 1 },
-      handsOnUsed: { type: Number, default: 0 },
-      lastReset: { type: Date, default: Date.now },
-      handsOnActive: { type: Boolean, default: false }, // Flag para ativação do recurso
+      handsOnLimit: { type: Number, default: 1 }, // Limite mensal de "Mão Amiga"
+      handsOnUsed: {
+        type: Number,
+        default: 0,
+        min: 0, // Garante que não fique negativo
+      },
+      lastReset: { type: Date, default: Date.now }, // Data do último reset do limite
+      handsOnActive: { type: Boolean, default: false }, // Ativo atualmente
       balance: { type: Number, default: 0 }, // Saldo do trabalhador
       lastHandsOnActivation: { type: Date, default: null }, // Data da última ativação
-      nextHandsOnThreshold: { type: Number, default: 10 }, // Trabalhos necessários para próxima ativação
+      nextHandsOnThreshold: { type: Number, default: 20 }, // Trabalhos para próxima ativação
     },
 
     handsOn: {
@@ -79,5 +83,13 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true } // Inclui createdAt e updatedAt automaticamente
 );
+
+// Middleware para garantir consistência em handsOnUsed
+UserSchema.pre("save", function (next) {
+  if (this.workerDetails.handsOnUsed < 0) {
+    this.workerDetails.handsOnUsed = 0;
+  }
+  next();
+});
 
 module.exports = mongoose.model("User", UserSchema);

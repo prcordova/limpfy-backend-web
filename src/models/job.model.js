@@ -14,6 +14,7 @@ const JobSchema = new mongoose.Schema(
         "dispute",
         "waiting-for-rating",
         "waiting-for-client",
+        "handsOn",
       ],
       default: "pending",
     },

@@ -9,12 +9,20 @@ exports.activateHandsOn = async (req, res) => {
       return res.status(404).json({ message: "Usuário não encontrado." });
     }
 
+    // Verificar se o usuário é um trabalhador
+    if (user.role !== "worker") {
+      return res.status(403).json({
+        message: "Apenas trabalhadores podem ativar o recurso 'Mão Amiga'.",
+      });
+    }
+
     const now = new Date();
     const lastActivation =
-      user.workerDetails.lastHandsOnActivation || user.workerDetails.createdAt;
+      user.workerDetails.lastHandsOnActivation || user.createdAt; // Usar a data de criação se nunca ativou
     const oneMonthLater = new Date(lastActivation);
-    oneMonthLater.setDate(oneMonthLater.getDate() + 30); // Adiciona 30 dias
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
 
+    // Verificar se já passou um mês desde a última ativação ou criação
     if (now < oneMonthLater) {
       const daysUntilEligible = Math.ceil(
         (oneMonthLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
@@ -24,19 +32,19 @@ exports.activateHandsOn = async (req, res) => {
       });
     }
 
-    const minJobs = user.workerDetails.nextHandsOnThreshold || 10;
+    // Verificar se atingiu o número mínimo de trabalhos
+    const minJobs = user.workerDetails.nextHandsOnThreshold || 20;
     if (user.workerDetails.completedJobs < minJobs) {
+      const jobsLeft = minJobs - user.workerDetails.completedJobs;
       return res.status(400).json({
-        message: `Faltam ${
-          minJobs - user.workerDetails.completedJobs
-        } trabalhos para atingir o mínimo de ${minJobs}.`,
+        message: `Faltam ${jobsLeft} trabalhos para atingir o mínimo de ${minJobs}.`,
       });
     }
 
-    // Ativar "Mão Amiga"
+    // Ativar o recurso 'Mão Amiga'
     user.workerDetails.handsOnActive = true;
-    user.workerDetails.lastHandsOnActivation = new Date();
-    user.workerDetails.nextHandsOnThreshold += 10; // Incrementa em 10 trabalhos
+    user.workerDetails.lastHandsOnActivation = now; // Atualiza a data de ativação
+    user.workerDetails.nextHandsOnThreshold += 20; // Incrementa 20 trabalhos para a próxima ativação
     await user.save();
 
     res
@@ -78,27 +86,16 @@ exports.checkEligibility = async (req, res) => {
 
     const now = new Date();
     const lastActivation =
-      user.workerDetails.lastHandsOnActivation || user.createdAt; // Usando o `createdAt` global
+      user.workerDetails.lastHandsOnActivation || user.createdAt; // Usar a data de criação se nunca ativou
     const oneMonthLater = new Date(lastActivation);
     oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
 
     const completedJobs = user.workerDetails.completedJobs;
-    const minJobs = user.workerDetails.nextHandsOnThreshold || 10;
+    const minJobs = user.workerDetails.nextHandsOnThreshold || 20;
 
     const criteria = [];
 
-    // Verificar se atingiu o mínimo de trabalhos
-    if (completedJobs < minJobs) {
-      criteria.push({
-        name: "Trabalhos Concluídos",
-        pending: minJobs - completedJobs,
-        message: `Faltam ${
-          minJobs - completedJobs
-        } trabalhos para atingir o mínimo de ${minJobs}.`,
-      });
-    }
-
-    // Verificar se passou pelo menos um mês desde a última ativação ou criação da conta
+    // Verificar se já passou um mês desde a última ativação ou criação
     if (now < oneMonthLater) {
       const daysUntilEligible = Math.ceil(
         (oneMonthLater.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
@@ -106,7 +103,17 @@ exports.checkEligibility = async (req, res) => {
       criteria.push({
         name: "Tempo Mínimo Entre Solicitações",
         pending: daysUntilEligible,
-        message: `Faltam ${daysUntilEligible} dias para poder ativar novamente o recurso 'Mão Amiga'.`,
+        message: `Faltam ${daysUntilEligible} dias para ativar o recurso 'Mão Amiga'.`,
+      });
+    }
+
+    // Verificar se atingiu o número mínimo de trabalhos
+    if (completedJobs < minJobs) {
+      const jobsLeft = minJobs - completedJobs;
+      criteria.push({
+        name: "Trabalhos Concluídos",
+        pending: jobsLeft,
+        message: `Faltam ${jobsLeft} trabalhos para atingir o mínimo de ${minJobs}.`,
       });
     }
 

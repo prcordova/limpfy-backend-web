@@ -4,6 +4,7 @@ const cors = require("cors");
 const path = require("path");
 const authRoutes = require("./routes/auth.routes");
 const jobsRoutes = require("./routes/jobs.routes");
+const ordersRoutes = require("./routes/order.routes");
 const usersRoutes = require("./routes/users.routes");
 const ocrRoutes = require("./routes/ocr.routes");
 const problemRoutes = require("./routes/problems.routes");
@@ -31,15 +32,15 @@ app.use("/models", express.static(path.join(__dirname, "public/models")));
 
 // Rotas
 app.use("/auth", authRoutes);
+app.use("/admin", adminRoutes);
+app.use("/orders", ordersRoutes);
 app.use("/jobs", jobsRoutes);
 app.use("/users", usersRoutes);
 app.use("/ocr", ocrRoutes);
 app.use("/payments", paymentsRoutes);
 app.use("/problems", require("./routes/problems.routes"), problemRoutes);
 app.use("/notifications", notificationsRoutes);
-app.use("/handson", require("./routes/handsOn.routes")), handsonRoutes;
-
-app.use("/admin", adminRoutes);
+app.use("/handson", require("./routes/handsOn.routes"), handsonRoutes);
 
 // Manipulador de erros global
 app.use(globalErrorHandler);
