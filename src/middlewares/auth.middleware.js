@@ -1,3 +1,5 @@
+// src/middlewares/auth.middleware.js
+
 const jwt = require("jsonwebtoken");
 const User = require("../models/user.model");
 
@@ -8,6 +10,7 @@ const User = require("../models/user.model");
 exports.authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
+  // Verifica se o cabeçalho Authorization segue o padrão "Bearer <token>"
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res
       .status(401)
@@ -17,19 +20,29 @@ exports.authenticate = async (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // console.log("Payload:", payload); // Adiciona log para verificar o payload
+    // Importante: no momento de gerar o token (login), confira se está usando
+    // algo como:
+    //   jwt.sign({ sub: user._id }, process.env.JWT_SECRET, { expiresIn: "1d" })
+    // para que o payload contenha `.sub` = ID do usuário.
 
-    const user = await User.findById(payload.sub); // Corrige para usar payload.sub
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // console.log("Payload decodificado do token JWT:", payload);
+
+    // Por padrão, você pode usar `payload.sub` ou `payload.id` dependendo de como
+    // está gerando o token. Aqui assumimos que, ao gerar, usou `{ sub: user._id }`.
+
+    const user = await User.findById(payload.sub);
     if (!user) {
-      console.log("Usuário não encontrado com ID:", payload.sub); // Adiciona log para verificar o ID do usuário
-      return res.status(401).json({ message: "Usuário não encontrado" });
+      console.log("Usuário não encontrado no DB. ID:", payload.sub);
+      return res.status(401).json({ message: "Usuário não encontrado." });
     }
 
-    req.user = user; // Adiciona os dados do usuário ao `req.user`
+    // “Injeta” o usuário em req.user
+    req.user = user;
     next();
   } catch (err) {
     console.error("Erro ao verificar token:", err.message);
-    res.status(401).json({ message: "Token inválido" });
+    // Pode customizar a mensagem de erro:
+    return res.status(401).json({ message: "Token inválido." });
   }
 };

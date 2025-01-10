@@ -1,5 +1,13 @@
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+// src/controllers/admin.controller.js
 
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const Job = require("../models/job.model");
+const User = require("../models/user.model");
+const { getConnectedUsers, getIO } = require("../socket");
+
+// ----------------------------------------------------------------------------
+// Exemplo de endpoint para consultar saldo no Stripe
+// ----------------------------------------------------------------------------
 exports.getStripeBalance = async (req, res) => {
   try {
     // Verificar se o usuário logado é admin
@@ -28,25 +36,29 @@ exports.getStripeBalance = async (req, res) => {
   }
 };
 
-//ADMIN envia mensagem de disputa
+// ----------------------------------------------------------------------------
+// ADMIN envia mensagem de disputa
+// ----------------------------------------------------------------------------
 exports.sendDisputeMessage = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job)
+    const { id } = req.params; // ID do Job
+    const job = await Job.findById(id);
+
+    if (!job) {
       return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
 
     if (job.status !== "dispute") {
       return res
         .status(400)
-        .json({ message: "Este trabalho não está em disputa." });
+        .json({ message: "Este trabalho não está em modo de disputa." });
     }
 
-    // Verifica o role do usuário a partir de req.user.role
-    // Apenas admin, cliente (job.clientId) ou trabalhador (job.workerId) podem enviar
-    // Mas você pode restringir ainda mais se necessário (por ex, se trabalhador não pode enviar após disputa aberta).
+    // Verifica o role do usuário (admin, client, worker).
+    // Caso seja necessário restringir mais a lógica, faça aqui.
     let senderRole = req.user.role; // 'admin', 'client', 'worker'
 
-    // Cliente só envia se job.clientId === req.user._id
+    // Se for 'client', precisa ser exatamente o clientId do Job
     if (
       senderRole === "client" &&
       job.clientId.toString() !== req.user._id.toString()
@@ -54,40 +66,88 @@ exports.sendDisputeMessage = async (req, res) => {
       return res.status(403).json({ message: "Permissão negada" });
     }
 
-    // Trabalhador só envia mensagem se assim for permitido pela lógica (por ex, pode ser bloqueado na disputa)
+    // Se for 'worker', precisa ser o workerId do Job
     if (
       senderRole === "worker" &&
+      job.workerId &&
       job.workerId.toString() !== req.user._id.toString()
     ) {
       return res.status(403).json({ message: "Permissão negada" });
     }
 
-    // Admin pode sempre enviar, assumindo que req.user.role === 'admin'
+    // No corpo da requisição, podemos ter um roleOverride dizendo
+    // "client" ou "worker" (caso o admin queira enviar mensagem
+    // se passando pelo cliente ou trabalhador).
+    // Se isso não for desejado, você pode ignorar roleOverride.
+    let roleOverride = req.body.roleOverride; // 'client' || 'worker' etc.
+    if (senderRole === "admin" && roleOverride) {
+      senderRole = roleOverride;
+    }
 
-    job.disputeMessages.push({
+    // Insere a nova mensagem no array disputeMessages
+    const newMsg = {
       senderId: req.user._id,
       senderRole: senderRole,
       message: req.body.message,
-    });
+      sentAt: new Date(),
+    };
+    job.disputeMessages.push(newMsg);
 
     await job.save();
 
-    // Enviar via socket.io para as partes envolvidas (cliente, trabalhador, admin) se desejado
-    // ...
+    // Para emitir via Socket.IO:
+    const io = getIO();
+    const connectedUsers = getConnectedUsers();
+
+    const clientUserId = job.clientId?.toString();
+    const workerUserId = job.workerId?.toString();
+
+    // Se a mensagem for direcionada ao "cliente"
+    // e ele estiver conectado ao socket:
+    if (
+      roleOverride === "client" &&
+      clientUserId &&
+      connectedUsers[clientUserId]
+    ) {
+      io.to(connectedUsers[clientUserId]).emit("disputeMessage", {
+        jobId: job._id,
+        senderRole: "admin",
+        text: req.body.message,
+      });
+    }
+
+    // Se a mensagem for direcionada ao "worker"
+    // e ele estiver conectado:
+    if (
+      roleOverride === "worker" &&
+      workerUserId &&
+      connectedUsers[workerUserId]
+    ) {
+      io.to(connectedUsers[workerUserId]).emit("disputeMessage", {
+        jobId: job._id,
+        senderRole: "admin",
+        text: req.body.message,
+      });
+    }
 
     res.json({ message: "Mensagem enviada", job });
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao enviar mensagem de disputa:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-//resolve disputa
+// ----------------------------------------------------------------------------
+// ADMIN resolve disputa
+// ----------------------------------------------------------------------------
 exports.resolveDispute = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
-    if (!job)
+    const { id } = req.params; // ID do Job
+    const job = await Job.findById(id);
+
+    if (!job) {
       return res.status(404).json({ message: "Trabalho não encontrado" });
+    }
 
     // Verificar role admin
     if (req.user.role !== "admin") {
@@ -97,26 +157,35 @@ exports.resolveDispute = async (req, res) => {
     }
 
     if (job.status !== "dispute" || job.disputeStatus !== "open") {
-      return res.status(400).json({ message: "A disputa não está aberta." });
+      return res.status(400).json({
+        message:
+          "A disputa não está aberta ou o Job não está em status 'dispute'.",
+      });
     }
 
-    // Decisão do admin: liberar pagamento ou não
-    // Suponha que req.body.action seja "release-payment" ou "refund-client"
+    // Decisão do admin: "release-payment", "refund-client", etc.
     const action = req.body.action;
     if (!action) {
-      return res.status(400).json({ message: "Ação não fornecida." });
+      return res.status(400).json({ message: "Ação não fornecida (action)." });
     }
 
+    // Marca a disputa como resolvida
     job.disputeStatus = "resolved";
     job.status = "completed";
     job.disputeResolvedAt = new Date();
 
+    // Se for "release-payment" => job.paymentReleased = true
     if (action === "release-payment") {
       job.paymentReleased = true;
-      // Lógica de pagamento ao trabalhador...
+      // Ex.: job.paymentReleasedAt = new Date() (se precisar)
+      // Exemplo: se quiser transferir o saldo para o worker, etc.
     } else if (action === "refund-client") {
       job.paymentReleased = false;
-      // Lógica de reembolso ao cliente...
+      // Lógica de reembolso ao cliente
+    } else if (action === "claim-invalid") {
+      // Caso queira uma ação específica de "invalidação" da reclamação
+      // Definir job.paymentReleased = true ou false, conforme sua regra
+      job.paymentReleased = false; // Por exemplo
     } else {
       return res.status(400).json({ message: "Ação inválida." });
     }
@@ -125,10 +194,92 @@ exports.resolveDispute = async (req, res) => {
 
     // Notificar cliente e trabalhador do resultado via notificação e/ou socket
     // ...
-
     res.json({ message: "Disputa resolvida com sucesso.", job });
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao resolver disputa:", err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+// ----------------------------------------------------------------------------
+// ADMIN lista todas as disputas
+// ----------------------------------------------------------------------------
+exports.getDisputes = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+
+    // Buscar todos os trabalhos em status "dispute"
+    const docs = await Job.find({ status: "dispute" })
+      .populate("clientId", "fullName email")
+      .populate("workerId", "fullName email");
+
+    const disputes = [];
+
+    // Exemplo de cálculo do adjustedPrice
+    for (const doc of docs) {
+      let adjustedPrice = null;
+      if (doc.workerId) {
+        const worker = await User.findById(doc.workerId);
+        if (worker) {
+          const platformFee = 0.3; // 30%
+          const discount = worker.workerDetails.handsOnActive ? 0.05 : 0; // 5% se Mão Amiga
+          adjustedPrice = doc.price * (1 - platformFee) * (1 - discount);
+        }
+      }
+
+      disputes.push({
+        ...doc.toObject(),
+        adjustedPrice,
+      });
+    }
+
+    return res.status(200).json({ disputes });
+  } catch (error) {
+    console.error("Erro ao buscar disputas:", error);
+    res.status(500).json({ message: "Erro ao buscar disputas." });
+  }
+};
+
+// ----------------------------------------------------------------------------
+// ADMIN obtém detalhes de uma disputa específica
+// ----------------------------------------------------------------------------
+exports.getDisputeById = async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+
+    const { id } = req.params; // ID do Job
+
+    // Buscar o Job (se quiser obrigar estar em status dispute, use um findOne com status: 'dispute')
+    const job = await Job.findById(id)
+      .populate("clientId", "fullName email")
+      .populate("workerId", "fullName email");
+
+    if (!job) {
+      return res.status(404).json({ message: "Disputa não encontrada." });
+    }
+
+    let adjustedPrice = null;
+    if (job.workerId) {
+      const worker = await User.findById(job.workerId);
+      if (worker) {
+        const platformFee = 0.3;
+        const discount = worker.workerDetails.handsOnActive ? 0.05 : 0;
+        adjustedPrice = job.price * (1 - platformFee) * (1 - discount);
+      }
+    }
+
+    const dispute = {
+      ...job.toObject(),
+      adjustedPrice,
+    };
+
+    return res.status(200).json({ dispute });
+  } catch (error) {
+    console.error("Erro ao buscar disputa por ID:", error);
+    return res.status(500).json({ message: "Erro ao buscar disputa." });
   }
 };

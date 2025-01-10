@@ -12,6 +12,7 @@ const notificationsRoutes = require("./routes/notifications.routes");
 const paymentsRoutes = require("./routes/payments.routes");
 const handsonRoutes = require("./routes/handsOn.routes");
 const adminRoutes = require("./routes/admin.routes");
+const supportRoutes = require("./routes/support.routes");
 
 const { globalErrorHandler } = require("./utils/error.handler");
 
@@ -33,6 +34,7 @@ app.use("/models", express.static(path.join(__dirname, "public/models")));
 // Rotas
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
+app.use("/support", supportRoutes);
 app.use("/orders", ordersRoutes);
 app.use("/jobs", jobsRoutes);
 app.use("/users", usersRoutes);

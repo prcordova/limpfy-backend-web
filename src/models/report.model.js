@@ -12,8 +12,8 @@ const ReportSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  type: { type: String, required: true },
-  description: { type: String, required: false }, // Ajustado para não ser obrigatório
+  type: { type: String, required: true }, // Ex.: 'Mão Amiga', 'Problema Carro', etc
+  description: { type: String }, // Não obrigatório
   createdAt: { type: Date, default: Date.now },
 });
 

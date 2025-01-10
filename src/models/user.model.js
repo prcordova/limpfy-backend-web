@@ -13,12 +13,16 @@ const UserSchema = new mongoose.Schema(
     phone: { type: String, required: true },
     cpf: { type: String, required: true, unique: true },
     birthDate: { type: Date, required: true },
+
     password: { type: String, required: true },
+
+    // Agora aceitamos 'support' também
     role: {
       type: String,
-      enum: ["client", "worker", "admin"],
+      enum: ["client", "worker", "support", "admin"],
       default: "client",
     },
+
     address: {
       cep: { type: String, required: true },
       street: { type: String, required: true },
@@ -28,6 +32,7 @@ const UserSchema = new mongoose.Schema(
       complement: { type: String },
       reference: { type: String },
     },
+
     isVerified: { type: Boolean, default: false },
     hasAcceptedTerms: { type: Boolean, default: false },
     termsAcceptedDate: { type: Date },
@@ -49,6 +54,7 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
+    // Avaliações que este usuário (como worker) recebeu
     ratings: [
       {
         jobId: { type: mongoose.Schema.Types.ObjectId, ref: "Job" },
@@ -61,19 +67,18 @@ const UserSchema = new mongoose.Schema(
     workerDetails: {
       completedJobs: { type: Number, default: 0 },
       createdAt: { type: Date, default: Date.now },
-      handsOnLimit: { type: Number, default: 1 }, // Limite mensal de "Mão Amiga"
-      handsOnUsed: {
-        type: Number,
-        default: 0,
-        min: 0, // Garante que não fique negativo
-      },
-      lastReset: { type: Date, default: Date.now }, // Data do último reset do limite
-      handsOnActive: { type: Boolean, default: false }, // Ativo atualmente
-      balance: { type: Number, default: 0 }, // Saldo do trabalhador
-      lastHandsOnActivation: { type: Date, default: null }, // Data da última ativação
-      nextHandsOnThreshold: { type: Number, default: 20 }, // Trabalhos para próxima ativação
+
+      // Mão Amiga
+      handsOnLimit: { type: Number, default: 1 }, // Limite mensal
+      handsOnUsed: { type: Number, default: 0, min: 0 },
+      lastReset: { type: Date, default: Date.now },
+      handsOnActive: { type: Boolean, default: false },
+      balance: { type: Number, default: 0 },
+      lastHandsOnActivation: { type: Date, default: null },
+      nextHandsOnThreshold: { type: Number, default: 20 },
     },
 
+    // Se quiser manter também um objeto 'handsOn' adicional
     handsOn: {
       isActive: { type: Boolean, default: false },
       subscriptionId: { type: String, default: null },
@@ -81,12 +86,12 @@ const UserSchema = new mongoose.Schema(
       nextBillingDate: { type: Date, default: null },
     },
   },
-  { timestamps: true } // Inclui createdAt e updatedAt automaticamente
+  { timestamps: true }
 );
 
 // Middleware para garantir consistência em handsOnUsed
 UserSchema.pre("save", function (next) {
-  if (this.workerDetails.handsOnUsed < 0) {
+  if (this.workerDetails && this.workerDetails.handsOnUsed < 0) {
     this.workerDetails.handsOnUsed = 0;
   }
   next();
