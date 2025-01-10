@@ -67,6 +67,7 @@ exports.sendSupportMessage = async (req, res) => {
       senderId,
       senderRole,
       message,
+      senderName,
       sentAt: new Date(),
     };
     job.disputeMessages.push(newMessage);
@@ -91,7 +92,9 @@ exports.sendSupportMessage = async (req, res) => {
         jobId: job._id,
         senderRole: senderRole,
         text: message,
-        // ...
+        sentAt: new Date(),
+        senderName,
+        senderId: req.user._id,
       });
     });
 
