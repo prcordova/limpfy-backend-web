@@ -39,6 +39,7 @@ exports.getStripeBalance = async (req, res) => {
 // ----------------------------------------------------------------------------
 // ADMIN envia mensagem de disputa
 // ----------------------------------------------------------------------------
+// Exemplo de função corrigida
 exports.sendDisputeMessage = async (req, res) => {
   try {
     const { id } = req.params; // ID do Job
@@ -54,11 +55,10 @@ exports.sendDisputeMessage = async (req, res) => {
         .json({ message: "Este trabalho não está em modo de disputa." });
     }
 
-    // Verifica o role do usuário (admin, client, worker).
-    // Caso seja necessário restringir mais a lógica, faça aqui.
-    let senderRole = req.user.role; // 'admin', 'client', 'worker'
+    // Verifica o role do usuário: 'admin', 'client', 'worker'
+    let senderRole = req.user.role;
 
-    // Se for 'client', precisa ser exatamente o clientId do Job
+    // Se for 'client', precisa ser o clientId do Job
     if (
       senderRole === "client" &&
       job.clientId.toString() !== req.user._id.toString()
@@ -75,35 +75,33 @@ exports.sendDisputeMessage = async (req, res) => {
       return res.status(403).json({ message: "Permissão negada" });
     }
 
-    // No corpo da requisição, podemos ter um roleOverride dizendo
-    // "client" ou "worker" (caso o admin queira enviar mensagem
-    // se passando pelo cliente ou trabalhador).
-    // Se isso não for desejado, você pode ignorar roleOverride.
-    let roleOverride = req.body.roleOverride; // 'client' || 'worker' etc.
+    // Se for admin e tiver roleOverride (p.ex. "client" ou "worker"), faz override
+    let roleOverride = req.body.roleOverride; // 'client' | 'worker'
     if (senderRole === "admin" && roleOverride) {
       senderRole = roleOverride;
     }
 
-    // Insere a nova mensagem no array disputeMessages
+    // Criamos o objeto da nova mensagem com data real
     const newMsg = {
       senderId: req.user._id,
-      senderRole: senderRole,
+      senderRole: senderRole, // 'admin', 'client', 'worker'
       message: req.body.message,
-      sentAt: new Date(),
+      sentAt: new Date(), // data/hora real
+      senderName: req.user.fullName, // Atenção a digitação
     };
-    job.disputeMessages.push(newMsg);
 
+    // Adiciona ao array
+    job.disputeMessages.push(newMsg);
     await job.save();
 
-    // Para emitir via Socket.IO:
+    // Emite no socket
     const io = getIO();
     const connectedUsers = getConnectedUsers();
 
     const clientUserId = job.clientId?.toString();
     const workerUserId = job.workerId?.toString();
 
-    // Se a mensagem for direcionada ao "cliente"
-    // e ele estiver conectado ao socket:
+    // Se o ADMIN enviou "como client" e o CLIENTE estiver conectado, envia p/ ele
     if (
       roleOverride === "client" &&
       clientUserId &&
@@ -113,11 +111,13 @@ exports.sendDisputeMessage = async (req, res) => {
         jobId: job._id,
         senderRole: "admin",
         text: req.body.message,
+        senderId: req.user._id,
+        sentAt: newMsg.sentAt, // Certifique-se de que isto está definido
+        senderName: req.user.fullName,
       });
     }
 
-    // Se a mensagem for direcionada ao "worker"
-    // e ele estiver conectado:
+    // Se o ADMIN enviou "como worker" e o WORKER estiver conectado, envia p/ ele
     if (
       roleOverride === "worker" &&
       workerUserId &&
@@ -127,9 +127,13 @@ exports.sendDisputeMessage = async (req, res) => {
         jobId: job._id,
         senderRole: "admin",
         text: req.body.message,
+        senderId: req.user._id,
+        sentAt: newMsg.sentAt, // Corrigido
+        senderName: req.user.fullName, // Corrigido
       });
     }
 
+    // Retorna
     res.json({ message: "Mensagem enviada", job });
   } catch (err) {
     console.error("Erro ao enviar mensagem de disputa:", err);
