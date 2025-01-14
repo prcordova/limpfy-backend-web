@@ -153,14 +153,30 @@ exports.resolveTicket = async (req, res) => {
 
 exports.getTickets = async (req, res) => {
   try {
-    // Permite acesso para supportN1
     if (!hasSupportAccess(req.user.role)) {
       return res.status(403).json({ message: "Acesso negado." });
     }
 
-    const docs = await Job.find({ status: "dispute" })
+    const { status, assignedTo } = req.query;
+    const query = {
+      status: "dispute",
+      disputeStatus: { $ne: "resolved" }, // Não mostrar tickets resolvidos por padrão
+    };
+
+    // Filtrar por status do suporte
+    if (status) {
+      query.supportStatus = status;
+    }
+
+    // Filtrar por tickets atribuídos ao usuário atual
+    if (assignedTo === "me") {
+      query.supportId = req.user._id;
+    }
+
+    const docs = await Job.find(query)
       .populate("clientId", "fullName email")
-      .populate("workerId", "fullName email");
+      .populate("workerId", "fullName email")
+      .populate("supportId", "fullName email");
 
     const tickets = [];
 
@@ -223,5 +239,91 @@ exports.getTicketById = async (req, res) => {
   } catch (error) {
     console.error("Erro ao buscar ticket por ID:", error);
     return res.status(500).json({ message: "Erro ao buscar ticket." });
+  }
+};
+
+// Função para atender ticket
+exports.assignTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supportId = req.user._id;
+
+    // Verifica se o usuário tem permissão de suporte
+    if (!hasSupportAccess(req.user.role)) {
+      return res.status(403).json({ message: "Acesso negado." });
+    }
+
+    const ticket = await Job.findById(id);
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket não encontrado" });
+    }
+
+    // Verifica se o ticket já está sendo atendido
+    if (ticket.supportId && ticket.supportStatus === "in-progress") {
+      const supportUser = await User.findById(ticket.supportId);
+      return res.status(400).json({
+        message: `Ticket já está sendo atendido por ${supportUser.fullName}`,
+      });
+    }
+
+    // Atualiza o ticket com as informações do suporte
+    ticket.supportId = supportId;
+    ticket.supportStatus = "in-progress";
+    ticket.supportAssignedAt = new Date();
+    ticket.disputeStatus = "in-progress"; // Atualiza o status da disputa também
+
+    await ticket.save();
+
+    res.status(200).json({
+      message: "Ticket atribuído com sucesso",
+      ticket,
+    });
+  } catch (error) {
+    console.error("Erro ao atribuir ticket:", error);
+    res.status(500).json({
+      message: "Erro ao atribuir ticket.",
+      error: error.message,
+    });
+  }
+};
+
+exports.unassignTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user._id;
+
+    const ticket = await Job.findById(id);
+
+    if (!ticket) {
+      return res.status(404).json({ message: "Ticket não encontrado" });
+    }
+
+    // Verifica se o ticket está atribuído ao usuário atual
+    if (
+      !ticket.supportId ||
+      ticket.supportId.toString() !== currentUserId.toString()
+    ) {
+      return res.status(403).json({
+        message:
+          "Você não pode desatribuir um ticket que não está atribuído a você",
+      });
+    }
+
+    // Reseta as informações de suporte
+    ticket.supportId = null;
+    ticket.supportStatus = "pending";
+    ticket.disputeStatus = "open";
+    ticket.supportAssignedAt = null;
+
+    await ticket.save();
+
+    res.status(200).json({
+      message: "Ticket desatribuído com sucesso",
+      ticket,
+    });
+  } catch (error) {
+    console.error("Erro ao desatribuir ticket:", error);
+    res.status(500).json({ message: "Erro ao desatribuir ticket." });
   }
 };

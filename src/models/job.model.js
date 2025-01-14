@@ -57,12 +57,16 @@ const JobSchema = new mongoose.Schema(
     disputeUntil: { type: Date },
 
     // Disputa
-    disputeStatus: { type: String }, // 'open', 'resolved', ...
+    disputeStatus: {
+      type: String,
+      enum: ["open", "pending", "in-progress", "resolved"],
+      default: "open",
+    },
     disputeReason: { type: String },
     disputeMessages: [
       {
         senderId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        senderRole: { type: String }, // 'admin', 'support', 'client', 'worker'
+        senderRole: { type: String },
         message: { type: String },
         sentAt: { type: Date, default: Date.now },
       },
@@ -85,6 +89,18 @@ const JobSchema = new mongoose.Schema(
     paymentIntentId: { type: String }, // se usar Stripe
     paymentReleased: { type: Boolean, default: false },
     paymentMethod: { type: String }, // 'stripe', 'pix', etc.
+
+    // Novos campos para suporte
+    supportId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    supportAssignedAt: { type: Date },
+    supportStatus: {
+      type: String,
+      enum: ["pending", "in-progress", "resolved"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );
