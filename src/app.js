@@ -13,6 +13,7 @@ const paymentsRoutes = require("./routes/payments.routes");
 const handsonRoutes = require("./routes/handsOn.routes");
 const adminRoutes = require("./routes/admin.routes");
 const supportRoutes = require("./routes/support.routes");
+const ticketsRoutes = require("./routes/tickets.routes");
 
 const { globalErrorHandler } = require("./utils/error.handler");
 
@@ -43,6 +44,7 @@ app.use("/payments", paymentsRoutes);
 app.use("/problems", require("./routes/problems.routes"), problemRoutes);
 app.use("/notifications", notificationsRoutes);
 app.use("/handson", require("./routes/handsOn.routes"), handsonRoutes);
+app.use("/tickets", ticketsRoutes);
 
 // Manipulador de erros global
 app.use(globalErrorHandler);

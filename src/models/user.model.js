@@ -19,7 +19,7 @@ const UserSchema = new mongoose.Schema(
     // Agora aceitamos 'support' também
     role: {
       type: String,
-      enum: ["client", "worker", "support", "admin"],
+      enum: ["client", "worker", "support", "admin", "supportN1"],
       default: "client",
     },
 
