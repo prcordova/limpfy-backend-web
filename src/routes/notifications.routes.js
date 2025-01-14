@@ -2,12 +2,14 @@ const express = require("express");
 const {
   getUserNotifications,
   deleteUserNotifications,
-} = require("../controllers/notifications.controller copy");
+  markNotificationAsRead,
+} = require("../controllers/notifications.controller");
 const { authenticate } = require("../middlewares/auth.middleware");
 
 const router = express.Router();
 
 router.get("/:id", authenticate, getUserNotifications);
 router.delete("/:id", authenticate, deleteUserNotifications);
+router.patch("/:userId/:notificationId", authenticate, markNotificationAsRead);
 
 module.exports = router;

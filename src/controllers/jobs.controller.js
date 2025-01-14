@@ -53,12 +53,16 @@ exports.getJobs = async (req, res) => {
 //busca trabalho por id
 exports.getJobById = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id);
+    const job = await Job.findById(req.params.id)
+      .populate("clientId", "fullName phone")
+      .populate("workerId", "fullName phone");
+
     if (!job) {
       return res.status(404).json({ message: "Trabalho não encontrado" });
     }
     res.json(job);
   } catch (err) {
+    console.error("Erro ao buscar trabalho:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -99,24 +103,47 @@ exports.acceptJob = async (req, res) => {
       worker.workerDetails.handsOnActive
     );
 
-    // Notificar cliente e salvar alterações
+    // Importante: Buscar o cliente pelo clientId do job
     const client = await User.findById(job.clientId);
     if (client) {
-      const { getConnectedUsers, getIO } = require("../socket");
+      console.log("Enviando notificação para cliente:", client._id);
+
+      // Adicionar notificação ao cliente (não ao worker)
+      const newNotification = {
+        message: `${worker.fullName} aceitou seu trabalho "${job.title}" e está a caminho.`,
+        jobId: job._id,
+        workerId: worker._id,
+        type: "job",
+        read: false,
+        createdAt: new Date(),
+      };
+
+      // Atualizar usando findByIdAndUpdate para garantir a atualização
+      await User.findByIdAndUpdate(
+        client._id,
+        {
+          $push: { notifications: newNotification },
+        },
+        { new: true }
+      );
+
+      // Log para debug
+      console.log("Notificação salva:", newNotification);
+
+      // Enviar via socket
       const users = getConnectedUsers();
       const socketId = users[client._id.toString()];
       if (socketId) {
         const io = getIO();
-        io.to(socketId).emit("jobAccepted", {
-          message: `O trabalho "${job.title}" foi aceito e está em andamento.`,
-        });
+        io.to(socketId).emit("newNotification", newNotification);
+        console.log("Notificação enviada via socket para:", socketId);
       }
     }
 
     await job.save();
     res.json({ ...job.toObject(), adjustedPrice });
   } catch (err) {
-    console.error(err);
+    console.error("Erro ao aceitar trabalho:", err);
     res.status(500).json({ message: err.message });
   }
 };

@@ -53,26 +53,42 @@ function configureSocket(server) {
     // 2) EVENTOS DE CONEXÃO
     // -----------
     io.on("connection", (socket) => {
-      console.log(`🔌 Usuário conectado: ${socket.id}`);
+      console.log("Cliente conectado:", socket.id);
 
-      // Como já temos `socket.user` definido pelo middleware,
-      // podemos pegar o ID real do usuário:
-      const userId = socket.user._id.toString();
-      connectedUsers[userId] = socket.id;
-      console.log(`✅ Vinculando userId ${userId} ao socket ${socket.id}`);
+      socket.on("join", (data) => {
+        const { userId, ticketId } = data;
+
+        if (userId) {
+          console.log(`Usuário ${userId} conectado ao socket ${socket.id}`);
+          connectedUsers[userId] = socket.id;
+        }
+
+        if (ticketId) {
+          const roomName = `ticket:${ticketId}`;
+          console.log(`Socket ${socket.id} entrando na sala ${roomName}`);
+          socket.join(roomName);
+        }
+      });
+
+      socket.on("leave", (data) => {
+        const { userId, ticketId } = data;
+
+        if (ticketId) {
+          console.log(
+            `Socket ${socket.id} saindo da sala do ticket:${ticketId}`
+          );
+          socket.leave(`ticket:${ticketId}`);
+        }
+      });
 
       socket.on("disconnect", () => {
-        console.log(`❌ Usuário desconectado: ${socket.id}`);
-
-        // Remover o mapeamento do connectedUsers
-        // se pertencia a esse socket
-        for (const uid in connectedUsers) {
-          if (connectedUsers[uid] === socket.id) {
-            console.log(
-              `❌ Desvinculando userId: ${uid} do socket: ${socket.id}`
-            );
-            delete connectedUsers[uid];
-          }
+        console.log("Cliente desconectado:", socket.id);
+        // Remove o usuário da lista de conectados
+        const userId = Object.keys(connectedUsers).find(
+          (key) => connectedUsers[key] === socket.id
+        );
+        if (userId) {
+          delete connectedUsers[userId];
         }
       });
     });

@@ -8,6 +8,7 @@ const {
   completeOrder,
   openDisputeOrder,
   rateOrder,
+  getOrderById,
 } = require("../controllers/orders.controller");
 
 const router = express.Router();
@@ -20,5 +21,6 @@ router.put("/:id/update", authenticate, updateOrder);
 router.post("/:id/complete-order", authenticate, completeOrder);
 router.post("/:id/open-dispute", authenticate, openDisputeOrder);
 router.post("/:id/rate", authenticate, rateOrder);
+router.get("/:id", authenticate, getOrderById);
 
 module.exports = router;

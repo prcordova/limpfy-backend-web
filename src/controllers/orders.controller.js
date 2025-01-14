@@ -30,12 +30,10 @@ exports.cancelOrder = async (req, res) => {
   try {
     const order = await Job.findById(req.params.id);
     if (!order) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "Não é possivel cancelar esse pedido, pois ele já está em andamento.",
-        });
+      return res.status(404).json({
+        message:
+          "Não é possivel cancelar esse pedido, pois ele já está em andamento.",
+      });
     }
 
     if (order.clientId.toString() !== req.user._id.toString()) {
@@ -198,6 +196,34 @@ exports.rateOrder = async (req, res) => {
     res.json({ message: "Avaliação enviada com sucesso." });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getOrderById = async (req, res) => {
+  try {
+    const order = await Job.findById(req.params.id)
+      .populate("clientId", "fullName phone")
+      .populate("workerId", "fullName phone avatars");
+
+    if (!order) {
+      return res.status(404).json({ message: "Pedido não encontrado" });
+    }
+
+    // Verificar se o usuário tem permissão para ver este pedido
+    if (
+      order.clientId._id.toString() !== req.user._id.toString() &&
+      (!order.workerId ||
+        order.workerId._id.toString() !== req.user._id.toString())
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Sem permissão para ver este pedido" });
+    }
+
+    res.json(order);
+  } catch (err) {
+    console.error("Erro ao buscar pedido:", err);
     res.status(500).json({ message: err.message });
   }
 };
