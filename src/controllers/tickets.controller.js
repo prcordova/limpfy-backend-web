@@ -59,40 +59,16 @@ exports.sendTicketMessage = async (req, res) => {
 
     // Socket logic
     const io = getIO();
-    const connectedUsers = getConnectedUsers();
 
-    const clientUserId = job.clientId?.toString();
-    const workerUserId = job.workerId?.toString();
-
-    if (
-      roleOverride === "client" &&
-      clientUserId &&
-      connectedUsers[clientUserId]
-    ) {
-      io.to(connectedUsers[clientUserId]).emit("disputeMessage", {
-        jobId: job._id,
-        senderRole: "admin",
-        text: req.body.message,
-        senderId: req.user._id,
-        sentAt: newMsg.sentAt,
-        senderName: req.user.fullName,
-      });
-    }
-
-    if (
-      roleOverride === "worker" &&
-      workerUserId &&
-      connectedUsers[workerUserId]
-    ) {
-      io.to(connectedUsers[workerUserId]).emit("disputeMessage", {
-        jobId: job._id,
-        senderRole: "admin",
-        text: req.body.message,
-        senderId: req.user._id,
-        sentAt: newMsg.sentAt,
-        senderName: req.user.fullName,
-      });
-    }
+    // Emite para a sala específica do ticket/job
+    io.to(`dispute:${id}`).emit("disputeMessage", {
+      jobId: job._id,
+      text: req.body.message,
+      senderId: req.user._id,
+      senderRole: senderRole,
+      sentAt: newMsg.sentAt,
+      senderName: req.user.fullName,
+    });
 
     res.json({ message: "Mensagem enviada", job });
   } catch (err) {

@@ -56,15 +56,26 @@ function configureSocket(server) {
       console.log("Cliente conectado:", socket.id);
 
       socket.on("join", (data) => {
-        const { userId, ticketId } = data;
+        // Se for string, assume que é userId
+        if (typeof data === "string") {
+          const userId = data;
+          console.log(`Usuário ${userId} conectado ao socket ${socket.id}`);
+          connectedUsers[userId] = socket.id;
+          return;
+        }
+
+        // Se for objeto, processa ticketId/jobId
+        const { userId, ticketId, jobId } = data;
 
         if (userId) {
           console.log(`Usuário ${userId} conectado ao socket ${socket.id}`);
           connectedUsers[userId] = socket.id;
         }
 
-        if (ticketId) {
-          const roomName = `ticket:${ticketId}`;
+        // Cria sala única para o ticket/job
+        const roomId = ticketId || jobId;
+        if (roomId) {
+          const roomName = `dispute:${roomId}`;
           console.log(`Socket ${socket.id} entrando na sala ${roomName}`);
           socket.join(roomName);
         }
