@@ -1,5 +1,4 @@
 const express = require("express");
-const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const path = require("path");
 const authRoutes = require("./routes/auth.routes");
@@ -24,7 +23,6 @@ app.use("/payments/webhook", express.raw({ type: "application/json" }));
 
 // Outros middlewares para o restante das rotas
 app.use(express.json({ limit: "10mb" })); // Definindo limite para o body
-app.use(cookieParser());
 app.use(cors());
 
 // Middlewares para servir arquivos estáticos

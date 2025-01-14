@@ -89,14 +89,12 @@ exports.updateProfile = async (req, res) => {
 
     const updates = {};
 
-    // Se o front mandar address como JSON, parse
     if (req.body.address) {
       updates.address = JSON.parse(req.body.address);
     }
 
     // Tratamento de avatar
     if (req.file) {
-      // Exemplo: salvando em public/uploads/users/:id/avatar
       const avatarDir = path.join(
         process.cwd(),
         "public/uploads/users",
@@ -110,7 +108,6 @@ exports.updateProfile = async (req, res) => {
       const avatarPath = path.join(avatarDir, req.file.filename);
       fs.renameSync(req.file.path, avatarPath);
 
-      // $push adiciona ao array de avatars
       updates.$push = {
         avatars: {
           path: `users/${userId}/avatar/${req.file.filename}`,
@@ -124,26 +121,12 @@ exports.updateProfile = async (req, res) => {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
-    // Renova token (opcional), se quiser que o front receba novamente
-    const token = jwt.sign(
-      { sub: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-
-    // Envia token por Cookie (opcional)
-    res.cookie("session-token", token, {
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
     const latestAvatar =
       user.avatars && user.avatars.length > 0
         ? user.avatars[user.avatars.length - 1].path
         : null;
 
     res.json({
-      access_token: token,
       role: user.role,
       userId: user._id,
       fullName: user.fullName,

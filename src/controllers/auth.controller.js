@@ -54,12 +54,6 @@ exports.login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    // Armazena o token em um cookie
-    res.cookie("session-token", token, {
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
     res.json({
       access_token: token,
       role: user.role,
@@ -78,15 +72,10 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
 exports.getProfile = async (req, res) => {
   try {
-    const token = req.cookies["session-token"];
-    if (!token) {
-      return res.status(401).json({ message: "Token não encontrado" });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.sub);
+    const user = await User.findById(req.user._id);
 
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
