@@ -8,6 +8,8 @@ const {
   getTicketById,
   assignTicket,
   unassignTicket,
+  updateTicket,
+  unassignWorker,
 } = require("../controllers/tickets.controller");
 
 router.use(authenticate);
@@ -18,5 +20,7 @@ router.post("/:id/send-message", sendTicketMessage);
 router.post("/:id/resolve", resolveTicket);
 router.post("/:id/assign", assignTicket);
 router.post("/:id/unassign", unassignTicket);
+router.put("/:id/update", authenticate, updateTicket);
+router.post("/:id/unassign-worker", authenticate, unassignWorker);
 
 module.exports = router;

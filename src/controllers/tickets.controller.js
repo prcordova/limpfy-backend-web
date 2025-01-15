@@ -303,3 +303,101 @@ exports.unassignTicket = async (req, res) => {
     res.status(500).json({ message: "Erro ao desatribuir ticket." });
   }
 };
+
+exports.updateTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const job = await Job.findById(id);
+
+    if (!job) {
+      return res.status(404).json({ message: "Ticket não encontrado" });
+    }
+
+    // Verifica se o usuário é o support assignado
+    if (job.supportId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Apenas o atendente designado pode atualizar este ticket",
+      });
+    }
+
+    // Campos permitidos para atualização
+    const allowedUpdates = [
+      "status",
+      "price",
+      "adjustedPrice",
+      "description",
+      "disputeReason",
+    ];
+
+    // Atualiza apenas os campos permitidos
+    allowedUpdates.forEach((field) => {
+      if (updates[field] !== undefined) {
+        job[field] = updates[field];
+      }
+    });
+
+    await job.save();
+
+    // Emite evento via socket para atualizar os clientes
+    const io = getIO();
+    io.to(`dispute:${id}`).emit("ticketUpdated", {
+      jobId: job._id,
+      updates: allowedUpdates.reduce((acc, field) => {
+        acc[field] = job[field];
+        return acc;
+      }, {}),
+    });
+
+    res.json({
+      message: "Ticket atualizado com sucesso",
+      ticket: job,
+    });
+  } catch (error) {
+    console.error("Erro ao atualizar ticket:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.unassignWorker = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const job = await Job.findById(id);
+
+    if (!job) {
+      return res.status(404).json({ message: "Ticket não encontrado" });
+    }
+
+    // Verifica se o usuário é o support assignado
+    if (job.supportId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Apenas o atendente designado pode remover o trabalhador",
+      });
+    }
+
+    // Remove o trabalhador
+    job.workerId = null;
+    job.workerName = null;
+
+    await job.save();
+
+    // Emite evento via socket
+    const io = getIO();
+    io.to(`dispute:${id}`).emit("ticketUpdated", {
+      jobId: job._id,
+      updates: {
+        workerId: null,
+        workerName: null,
+      },
+    });
+
+    res.json({
+      message: "Trabalhador removido com sucesso",
+      ticket: job,
+    });
+  } catch (error) {
+    console.error("Erro ao remover trabalhador:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
