@@ -29,8 +29,14 @@ app.use(express.json({ limit: "10mb" })); // Definindo limite para o body
 
 app.use(
   cors({
-    origin: ["https://hml-limpfy.vercel.app", "https://limpfy.vercel.app"],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: [
+      "https://hml-limpfy.vercel.app",
+      "https://limpfy.vercel.app",
+      "https://limpfybackend-ucdppc9d.b4a.run",
+      "http://localhost:3000",
+      "http://localhost:8080",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
   })
