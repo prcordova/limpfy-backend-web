@@ -22,8 +22,19 @@ const app = express();
 app.use("/payments/webhook", express.raw({ type: "application/json" }));
 
 // Outros middlewares para o restante das rotas
+
+//enable cors for https://hml-limpfy.vercel.app limpfy.vercel.app
+
 app.use(express.json({ limit: "10mb" })); // Definindo limite para o body
-app.use(cors());
+
+app.use(
+  cors({
+    origin: ["https://hml-limpfy.vercel.app", "https://limpfy.vercel.app"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
 
 // Middlewares para servir arquivos estáticos
 app.use("/uploads", express.static(path.join(process.cwd(), "public/uploads")));
